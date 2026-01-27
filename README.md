@@ -90,14 +90,19 @@ See the `examples/` directory:
 
 ```text
 examples/
-├── reportlab/basic/
-│   ├── hello_world/
-│   ├── multi_paragraph/
-│   ├── simple_table/
-│   ├── styled_table/
-│   ├── multi_page/
-│   ├── images_and_shapes/
-│   └── invoice/
+├── reportlab/
+│   ├── basic/
+│   │   ├── hello_world/
+│   │   ├── multi_paragraph/
+│   │   ├── simple_table/
+│   │   ├── styled_table/
+│   │   ├── multi_page/
+│   │   ├── images_and_shapes/
+│   │   └── invoice/
+│   └── platypus/
+│       ├── flowables/        # Paragraphs, spacers, tables with auto page breaks
+│       ├── with_images/      # Images in documents
+│       └── long_document/    # Multi-page document with mixed content
 └── lrc/basic/
     ├── simple_layout/
     └── nested_elastic/
