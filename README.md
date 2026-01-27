@@ -4,83 +4,128 @@ Print and PDF generation system for the Genropy framework.
 
 ## Status
 
-🔴 **Pre-Alpha** - Architecture and documentation phase
+🟡 **Alpha** - Core functionality implemented, API may change
 
 ## Overview
 
-`genro-print` implements a **Layout/Row/Cell** model for document generation with:
+`genro-print` provides two approaches for PDF generation:
 
-- Pure declarative source using `genro-bag`
-- Clean separation between source and compiled output
-- WeasyPrint backend for PDF generation
-- Pagination calculation as pure function
+### 1. ReportLab Builder (Direct)
+
+Use ReportLab elements directly (paragraphs, tables, images, shapes).
+
+```python
+from genro_print import PrintApp
+
+class MyReport(PrintApp):
+    def recipe(self, root):
+        root.document(width=210.0, height=297.0)
+        root.paragraph(content="Hello World!", style="Heading1")
+        root.spacer(height=10.0)
+        root.paragraph(content="This is a PDF document.")
+
+MyReport().save("report.pdf")
+```
+
+### 2. Layout/Row/Cell Builder (Elastic Grid)
+
+Define layouts with elastic dimensions that auto-calculate.
+
+```python
+from genro_print import LRCPrintApp
+
+class MyReport(LRCPrintApp):
+    def recipe(self, root):
+        layout = root.layout(width=210.0, height=297.0, top=10.0, bottom=10.0)
+
+        # Header row (fixed height)
+        header = layout.row(height=25.0, border=True)
+        header.cell(width=50.0, content="Logo")
+        header.cell(content="Title")  # elastic width
+
+        # Content rows (elastic height)
+        row1 = layout.row(height=0, border=True)  # elastic
+        row1.cell(content="Row 1")
+
+        row2 = layout.row(height=0, border=True)  # elastic
+        row2.cell(content="Row 2")
+
+LRCPrintApp().save("report.pdf")
+```
 
 ## Installation
 
 ```bash
 pip install genro-print
 
-# With PDF support
-pip install genro-print[pdf]
+# With ReportLab support (recommended)
+pip install genro-print[reportlab]
+
+# With all backends
+pip install genro-print[all]
 ```
 
-## Quick Example
+## Features
 
-```python
-from genro_bag import Bag
-from genro_print import PrintBuilder
+### PrintApp (ReportLab Builder)
 
-# Create document
-doc = Bag(builder=PrintBuilder)
+- **document**: Page setup (width, height)
+- **paragraph**: Text with styles
+- **spacer**: Vertical space
+- **pagebreak**: Force new page
+- **table/row/cell**: Tables with styling
+- **image**: Images
+- **Canvas operations**: drawString, rect, circle, line, etc.
 
-# Define layout (declarative - no computation yet)
-page = doc.page(width=210, height=297, margin=10)
-layout = page.layout()
+### LRCPrintApp (Layout/Row/Cell)
 
-header = layout.row(height=20)
-header.cell("Invoice", width=100)
-header.cell(field="invoice_number")  # Resolved at compile time
+- **Elastic dimensions**: `width=0` or `height=0` auto-calculates
+- **Nested layouts**: Cells can contain sub-layouts
+- **Border inheritance**: Borders propagate from layout → row → cell
+- **Margin support**: top, bottom, left, right margins
 
-body = layout.row()  # Elastic height
-body.cell(width=50).layout()  # Nested layout
+## Examples
 
-# Compile with data
-html = doc.builder.compile(
-    data={'invoice_number': 'INV-001'},
-    output_format='html'
-)
+See the `examples/` directory:
 
-# Or generate PDF
-pdf_bytes = doc.builder.compile(
-    data={'invoice_number': 'INV-001'},
-    output_format='pdf'
-)
+```text
+examples/
+├── reportlab/basic/
+│   ├── hello_world/
+│   ├── multi_paragraph/
+│   ├── simple_table/
+│   ├── styled_table/
+│   ├── multi_page/
+│   ├── images_and_shapes/
+│   └── invoice/
+└── lrc/basic/
+    ├── simple_layout/
+    └── nested_elastic/
 ```
+
+Each example folder contains a `.py` file and the generated `.pdf`.
 
 ## Architecture
 
-### Two-Phase Compilation
-
-1. **Pagination Phase** (pure function)
-   - Calculate which rows fit on each page
-   - Resolve elastic heights/widths
-   - Output: immutable page structure
-
-2. **Rendering Phase**
-   - Generate HTML/PDF from page structure
-   - No state mutation
+```text
+PrintApp                          LRCPrintApp
+    │                                  │
+    ▼                                  ▼
+Bag(ReportLabBuilder)            Bag(LRCPrintBuilder)
+    │                                  │
+    ▼ compile()                        ▼ compile()
+ComputedReportLab                ComputedLayout
+    │                                  │
+    ▼ render()                         ▼ LRCReportLabRenderer
+PDF bytes                         PDF bytes
+```
 
 ### Key Principles
 
-- **Source remains pure**: Bag contains only what user declared
-- **All computation in compile()**: No preprocessing during construction
-- **No side effects in iteration**: Generators only iterate
-- **Testable in isolation**: Pagination logic can be unit tested
-
-## Documentation
-
-- [Layout/Row/Cell Theory](docs/analysis/layout_row_cell_theory.md)
-- [Legacy Problems Analysis](docs/analysis/legacy_problems.md)
+- **Recipe pattern**: Define structure in `recipe()`, data in `_data` Bag
+- **Two-phase compilation**: First calculate dimensions, then render
+- **Pure declarative source**: Bag contains only what user declared
+- **No side effects**: All computation happens in `compile()`
 
 ## License
 

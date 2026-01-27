@@ -4,32 +4,32 @@
 """
 genro-print: Print and PDF generation system for Genropy.
 
-This module implements a Layout/Row/Cell model for document generation with:
-- Pure declarative source using genro-bag
-- Clean separation between source and compiled output
-- ReportLab backend for PDF generation
-- PyMuPDF utilities for watermark, merge, preview
+Two approaches for PDF generation:
 
-Architecture:
-    LRCPrintBuilder (Layout/Row/Cell)
-        ↓ compile()
-    ComputedLayout (resolved dimensions)
-        ↓ render()
-    ReportLabBuilder → PDF
-
-Example:
+1. PrintApp (ReportLab Builder) - Direct ReportLab elements:
     ```python
-    from genro_bag import Bag
-    from genro_print.builders import LRCPrintBuilder, ReportLabBuilder
+    from genro_print import PrintApp
 
-    # Build document
-    doc = Bag(builder=LRCPrintBuilder)
-    layout = doc.layout(width=210, height=297)
-    layout.row(height=30).cell(content="Hello World")
+    class MyReport(PrintApp):
+        def recipe(self, root):
+            root.document(width=210.0, height=297.0)
+            root.paragraph(content="Hello World!")
 
-    # Compile and render
-    computed = LRCPrintBuilder.compile(doc)
-    pdf_bytes = ReportLabBuilder(computed).render()
+    MyReport().save("report.pdf")
+    ```
+
+2. LRCPrintApp (Layout/Row/Cell) - Elastic grid layout:
+    ```python
+    from genro_print import LRCPrintApp
+
+    class MyReport(LRCPrintApp):
+        def recipe(self, root):
+            layout = root.layout(width=210.0, height=297.0)
+            row = layout.row(height=30.0)
+            row.cell(width=50.0, content="Fixed")
+            row.cell(content="Elastic")  # width=0 auto-calculates
+
+    MyReport().save("report.pdf")
     ```
 """
 
@@ -51,6 +51,30 @@ try:
     from genro_print.builders import ReportLabBuilder as ReportLabBuilder
 
     __all__.append("ReportLabBuilder")
+except ImportError:
+    pass
+
+# Optional: PrintApp (requires reportlab)
+try:
+    from genro_print.print_app import PrintApp as PrintApp
+
+    __all__.append("PrintApp")
+except ImportError:
+    pass
+
+# Optional: LRCPrintApp (requires reportlab)
+try:
+    from genro_print.lrc_app import LRCPrintApp as LRCPrintApp
+
+    __all__.append("LRCPrintApp")
+except ImportError:
+    pass
+
+# Optional: LRCReportLabRenderer (requires reportlab)
+try:
+    from genro_print.renderers import LRCReportLabRenderer as LRCReportLabRenderer
+
+    __all__.append("LRCReportLabRenderer")
 except ImportError:
     pass
 
