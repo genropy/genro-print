@@ -130,6 +130,7 @@ select = [
 ignore = [
     "PLR0913",  # Too many arguments
     "PLR2004",  # Magic value comparison
+    "PIE790",   # Unnecessary `...` literal (needed for @element decorators)
 ]
 
 [tool.ruff.lint.isort]

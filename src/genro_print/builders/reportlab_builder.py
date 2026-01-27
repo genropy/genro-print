@@ -4,7 +4,7 @@
 """
 ReportLabBuilder - Builder for ReportLab PDF generation.
 
-Auto-generated element methods for ReportLab Canvas and Platypus.
+Element methods for ReportLab Canvas and Platypus.
 Each method is decorated with @element and has proper sub_tags and typed parameters.
 
 Two-phase workflow:
@@ -21,8 +21,8 @@ import inspect
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
-from genro_bag import Bag, BagBuilderBase
-from genro_bag.builder import element
+from genro_bag import Bag
+from genro_bag.builder import BagBuilderBase, element
 
 try:
     from reportlab.lib.styles import getSampleStyleSheet
@@ -86,14 +86,14 @@ class ReportLabBuilder(BagBuilderBase):
 
         # Build document
         doc = Bag(builder=ReportLabBuilder)
-        doc.document(width=210, height=297)
+        doc.document(width=210.0, height=297.0)
         doc.paragraph(content="Hello World", style="Normal")
-        doc.spacer(height=10)
+        doc.spacer(height=10.0)
         doc.paragraph(content="Another paragraph")
 
         # Compile and render
-        computed = ReportLabBuilder.compile(doc)
-        pdf_bytes = ReportLabBuilder.render(computed)
+        computed = doc.builder.compile(doc)
+        pdf_bytes = doc.builder.render(computed)
         ```
     """
 
@@ -110,27 +110,17 @@ class ReportLabBuilder(BagBuilderBase):
     @element(sub_tags="*")
     def document(
         self,
-        width: float = 210,
-        height: float = 297,
-        left_margin: float = 10,
-        right_margin: float = 10,
-        top_margin: float = 10,
-        bottom_margin: float = 10,
+        width: float = 210.0,
+        height: float = 297.0,
+        left_margin: float = 10.0,
+        right_margin: float = 10.0,
+        top_margin: float = 10.0,
+        bottom_margin: float = 10.0,
         title: str | None = None,
         author: str | None = None,
     ) -> None:
-        """Document root element with page size and margins.
-
-        Args:
-            width: Page width in mm (default A4)
-            height: Page height in mm (default A4)
-            left_margin: Left margin in mm
-            right_margin: Right margin in mm
-            top_margin: Top margin in mm
-            bottom_margin: Bottom margin in mm
-            title: Document title (metadata)
-            author: Document author (metadata)
-        """
+        """Document root element with page size and margins."""
+        ...
 
     # -------------------------------------------------------------------------
     # Platypus elements (high-level flowables)
@@ -143,30 +133,22 @@ class ReportLabBuilder(BagBuilderBase):
         style: str = "Normal",
         bullet_text: str | None = None,
     ) -> None:
-        """A paragraph of text.
-
-        Args:
-            content: Text content (can include basic HTML markup)
-            style: Style name from stylesheet (Normal, Heading1, etc.)
-            bullet_text: Optional bullet prefix
-        """
+        """A paragraph of text."""
+        ...
 
     @element(sub_tags="", compile_type="platypus", compile_class="Spacer")
     def spacer(
         self,
-        width: float = 0,
-        height: float = 10,
+        width: float = 0.0,
+        height: float = 10.0,
     ) -> None:
-        """Vertical space between elements.
-
-        Args:
-            width: Width in mm (usually 0)
-            height: Height in mm
-        """
+        """Vertical space between elements."""
+        ...
 
     @element(sub_tags="", compile_type="platypus", compile_class="PageBreak")
     def pagebreak(self) -> None:
         """Force a page break."""
+        ...
 
     @element(sub_tags="", compile_type="platypus", compile_class="Image")
     def image(
@@ -178,16 +160,8 @@ class ReportLabBuilder(BagBuilderBase):
         mask: str | None = None,
         lazy: int = 1,
     ) -> None:
-        """An image flowable.
-
-        Args:
-            src: Image file path or URL
-            width: Width in mm (None = auto)
-            height: Height in mm (None = auto)
-            kind: 'direct', 'percentage', or 'absolute'
-            mask: Color mask
-            lazy: Lazy loading (1 = enabled)
-        """
+        """An image flowable."""
+        ...
 
     @element(sub_tags="row", compile_type="platypus", compile_class="Table")
     def table(
@@ -199,20 +173,13 @@ class ReportLabBuilder(BagBuilderBase):
         split_by_row: int = 1,
         h_align: str = "CENTER",
     ) -> None:
-        """A table flowable.
-
-        Args:
-            col_widths: Column widths in mm (None = auto)
-            row_heights: Row heights in mm (None = auto)
-            repeat_rows: Number of header rows to repeat on each page
-            repeat_cols: Number of columns to repeat on each page
-            split_by_row: Allow splitting between rows
-            h_align: Horizontal alignment (LEFT, CENTER, RIGHT)
-        """
+        """A table flowable."""
+        ...
 
     @element(sub_tags="cell", parent_tags="table")
     def row(self) -> None:
         """A table row. Contains cell elements."""
+        ...
 
     @element(sub_tags="", parent_tags="row")
     def cell(
@@ -224,16 +191,8 @@ class ReportLabBuilder(BagBuilderBase):
         valign: str | None = None,
         background: str | None = None,
     ) -> None:
-        """A table cell.
-
-        Args:
-            content: Cell content
-            colspan: Number of columns to span
-            rowspan: Number of rows to span
-            align: Horizontal alignment (LEFT, CENTER, RIGHT)
-            valign: Vertical alignment (TOP, MIDDLE, BOTTOM)
-            background: Background color
-        """
+        """A table cell."""
+        ...
 
     # -------------------------------------------------------------------------
     # Canvas elements (low-level drawing)
@@ -242,238 +201,164 @@ class ReportLabBuilder(BagBuilderBase):
     @element(sub_tags="", compile_type="canvas", compile_method="drawString")
     def drawstring(
         self,
-        x: float = 0,
-        y: float = 0,
+        x: float = 0.0,
+        y: float = 0.0,
         text: str = "",
         mode: int | None = None,
     ) -> None:
-        """Draw a string at position (x, y).
-
-        Args:
-            x: X coordinate in mm
-            y: Y coordinate in mm
-            text: Text to draw
-            mode: Text rendering mode
-        """
+        """Draw a string at position (x, y)."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="drawCentredString")
     def drawcentredstring(
         self,
-        x: float = 0,
-        y: float = 0,
+        x: float = 0.0,
+        y: float = 0.0,
         text: str = "",
     ) -> None:
-        """Draw a centered string at position (x, y).
-
-        Args:
-            x: X coordinate (center point) in mm
-            y: Y coordinate in mm
-            text: Text to draw
-        """
+        """Draw a centered string at position (x, y)."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="drawRightString")
     def drawrightstring(
         self,
-        x: float = 0,
-        y: float = 0,
+        x: float = 0.0,
+        y: float = 0.0,
         text: str = "",
     ) -> None:
-        """Draw a right-aligned string ending at position (x, y).
-
-        Args:
-            x: X coordinate (right edge) in mm
-            y: Y coordinate in mm
-            text: Text to draw
-        """
+        """Draw a right-aligned string ending at position (x, y)."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="rect")
     def rect(
         self,
-        x: float = 0,
-        y: float = 0,
-        width: float = 10,
-        height: float = 10,
+        x: float = 0.0,
+        y: float = 0.0,
+        width: float = 10.0,
+        height: float = 10.0,
         stroke: int = 1,
         fill: int = 0,
     ) -> None:
-        """Draw a rectangle.
-
-        Args:
-            x: X coordinate in mm
-            y: Y coordinate in mm
-            width: Width in mm
-            height: Height in mm
-            stroke: Draw outline (1 = yes)
-            fill: Fill interior (1 = yes)
-        """
+        """Draw a rectangle."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="roundRect")
     def roundrect(
         self,
-        x: float = 0,
-        y: float = 0,
-        width: float = 10,
-        height: float = 10,
-        radius: float = 2,
+        x: float = 0.0,
+        y: float = 0.0,
+        width: float = 10.0,
+        height: float = 10.0,
+        radius: float = 2.0,
         stroke: int = 1,
         fill: int = 0,
     ) -> None:
-        """Draw a rounded rectangle.
-
-        Args:
-            x: X coordinate in mm
-            y: Y coordinate in mm
-            width: Width in mm
-            height: Height in mm
-            radius: Corner radius in mm
-            stroke: Draw outline (1 = yes)
-            fill: Fill interior (1 = yes)
-        """
+        """Draw a rounded rectangle."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="circle")
     def circle(
         self,
-        x_cen: float = 0,
-        y_cen: float = 0,
-        r: float = 5,
+        x_cen: float = 0.0,
+        y_cen: float = 0.0,
+        r: float = 5.0,
         stroke: int = 1,
         fill: int = 0,
     ) -> None:
-        """Draw a circle.
-
-        Args:
-            x_cen: Center X coordinate in mm
-            y_cen: Center Y coordinate in mm
-            r: Radius in mm
-            stroke: Draw outline (1 = yes)
-            fill: Fill interior (1 = yes)
-        """
+        """Draw a circle."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="ellipse")
     def ellipse(
         self,
-        x1: float = 0,
-        y1: float = 0,
-        x2: float = 10,
-        y2: float = 5,
+        x1: float = 0.0,
+        y1: float = 0.0,
+        x2: float = 10.0,
+        y2: float = 5.0,
         stroke: int = 1,
         fill: int = 0,
     ) -> None:
-        """Draw an ellipse.
-
-        Args:
-            x1: Left X coordinate in mm
-            y1: Bottom Y coordinate in mm
-            x2: Right X coordinate in mm
-            y2: Top Y coordinate in mm
-            stroke: Draw outline (1 = yes)
-            fill: Fill interior (1 = yes)
-        """
+        """Draw an ellipse."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="line")
     def line(
         self,
-        x1: float = 0,
-        y1: float = 0,
-        x2: float = 10,
-        y2: float = 10,
+        x1: float = 0.0,
+        y1: float = 0.0,
+        x2: float = 10.0,
+        y2: float = 10.0,
     ) -> None:
-        """Draw a line.
-
-        Args:
-            x1: Start X coordinate in mm
-            y1: Start Y coordinate in mm
-            x2: End X coordinate in mm
-            y2: End Y coordinate in mm
-        """
+        """Draw a line."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="drawImage")
     def drawimage(
         self,
         image: str = "",
-        x: float = 0,
-        y: float = 0,
+        x: float = 0.0,
+        y: float = 0.0,
         width: float | None = None,
         height: float | None = None,
         mask: str | None = None,
         preserve_aspect_ratio: bool = False,
     ) -> None:
-        """Draw an image at position (x, y).
-
-        Args:
-            image: Image file path
-            x: X coordinate in mm
-            y: Y coordinate in mm
-            width: Width in mm (None = original)
-            height: Height in mm (None = original)
-            mask: Color mask
-            preserve_aspect_ratio: Maintain aspect ratio
-        """
+        """Draw an image at position (x, y)."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="setFont")
     def setfont(
         self,
         psfontname: str = "Helvetica",
-        size: float = 12,
+        size: float = 12.0,
     ) -> None:
-        """Set the current font.
-
-        Args:
-            psfontname: Font name (Helvetica, Times-Roman, Courier, etc.)
-            size: Font size in points
-        """
+        """Set the current font."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="setFillColor")
     def setfillcolor(
         self,
         color: str = "black",
     ) -> None:
-        """Set the fill color.
-
-        Args:
-            color: Color name or hex value
-        """
+        """Set the fill color."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="setStrokeColor")
     def setstrokecolor(
         self,
         color: str = "black",
     ) -> None:
-        """Set the stroke color.
-
-        Args:
-            color: Color name or hex value
-        """
+        """Set the stroke color."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="setLineWidth")
     def setlinewidth(
         self,
-        width: float = 1,
+        width: float = 1.0,
     ) -> None:
-        """Set the line width.
-
-        Args:
-            width: Line width in points
-        """
+        """Set the line width."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="saveState")
     def savestate(self) -> None:
         """Save the current graphics state."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="restoreState")
     def restorestate(self) -> None:
         """Restore the previously saved graphics state."""
+        ...
 
     @element(sub_tags="", compile_type="canvas", compile_method="showPage")
     def showpage(self) -> None:
         """End current page and start a new one (Canvas mode)."""
+        ...
 
     # -------------------------------------------------------------------------
     # Compile: transform Bag to ComputedReportLab
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def compile(cls, bag: Bag) -> ComputedReportLab:
+    def compile(self, bag: Bag) -> ComputedReportLab:
         """Compile a Bag to ComputedReportLab structure.
 
         Args:
@@ -488,7 +373,7 @@ class ReportLabBuilder(BagBuilderBase):
         margins = (10.0, 10.0, 10.0, 10.0)
 
         for node in bag:
-            tag = node.attr.get("tag", "")
+            tag = node.tag or ""
 
             # Document node sets page properties
             if tag == "document":
@@ -503,11 +388,11 @@ class ReportLabBuilder(BagBuilderBase):
                 # Compile children of document
                 if isinstance(node.value, Bag):
                     for child in node.value:
-                        compiled = cls._compile_node(child)
+                        compiled = self._compile_node(child)
                         if compiled:
                             elements.append(compiled)
             else:
-                compiled = cls._compile_node(node)
+                compiled = self._compile_node(node)
                 if compiled:
                     elements.append(compiled)
 
@@ -518,36 +403,28 @@ class ReportLabBuilder(BagBuilderBase):
             margins=margins,
         )
 
-    @classmethod
-    def _compile_node(cls, node: BagNode) -> dict[str, Any] | None:
-        """Compile a single node to element dictionary.
-
-        Args:
-            node: BagNode to compile
-
-        Returns:
-            Dictionary with element data, or None if not compilable
-        """
-        tag = node.attr.get("tag", "")
+    def _compile_node(self, node: BagNode) -> dict[str, Any] | None:
+        """Compile a single node to element dictionary."""
+        tag = node.tag or ""
         if not tag:
             return None
 
         # Check for dedicated compile method
-        compile_method = getattr(cls, f"_compile_{tag}", None)
+        compile_method = getattr(self, f"_compile_{tag}", None)
         if compile_method:
             result: dict[str, Any] | None = compile_method(node)
             return result
 
-        # Generic compilation based on schema info
-        attr = dict(node.attr)
+        # Get compile info from schema
+        schema_info = self.get_schema_info(tag)
+        compile_kwargs = schema_info.get("compile_kwargs", {})
 
-        # Get compile info from element decorator
-        compile_type = attr.pop("compile_type", None)
-        compile_class = attr.pop("compile_class", None)
-        compile_method_name = attr.pop("compile_method", None)
+        compile_type = compile_kwargs.get("type")
+        compile_class = compile_kwargs.get("class")
+        compile_method_name = compile_kwargs.get("method")
 
-        # Remove internal attributes
-        attr.pop("tag", None)
+        # Get node attributes (excluding internal ones)
+        attr = {k: v for k, v in node.attr.items() if not k.startswith("_")}
 
         # Get content from node value if present
         content = ""
@@ -562,16 +439,15 @@ class ReportLabBuilder(BagBuilderBase):
             "class": compile_class,
             "method": compile_method_name,
             "attr": attr,
-            "children": cls._compile_children(node) if isinstance(node.value, Bag) else [],
+            "children": self._compile_children(node) if isinstance(node.value, Bag) else [],
         }
 
-    @classmethod
-    def _compile_children(cls, node: BagNode) -> list[dict[str, Any]]:
+    def _compile_children(self, node: BagNode) -> list[dict[str, Any]]:
         """Compile child nodes."""
         children: list[dict[str, Any]] = []
         if isinstance(node.value, Bag):
             for child in node.value:
-                compiled = cls._compile_node(child)
+                compiled = self._compile_node(child)
                 if compiled:
                     children.append(compiled)
         return children
@@ -580,20 +456,18 @@ class ReportLabBuilder(BagBuilderBase):
     # Dedicated compile methods for elements needing special handling
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def _compile_table(cls, node: BagNode) -> dict[str, Any]:
+    def _compile_table(self, node: BagNode) -> dict[str, Any]:
         """Compile table with rows and cells."""
-        attr = dict(node.attr)
-        attr.pop("tag", None)
+        attr = {k: v for k, v in node.attr.items() if not k.startswith("_")}
 
         rows_data: list[list[str]] = []
         if isinstance(node.value, Bag):
             for row_node in node.value:
-                if row_node.attr.get("tag") == "row":
+                if row_node.tag == "row":
                     row_cells: list[str] = []
                     if isinstance(row_node.value, Bag):
                         for cell_node in row_node.value:
-                            if cell_node.attr.get("tag") == "cell":
+                            if cell_node.tag == "cell":
                                 cell_content = cell_node.attr.get("content", "")
                                 if not cell_content and cell_node.value:
                                     cell_content = str(cell_node.value)
@@ -614,8 +488,7 @@ class ReportLabBuilder(BagBuilderBase):
     # Render: transform ComputedReportLab to PDF
     # -------------------------------------------------------------------------
 
-    @classmethod
-    def render(cls, computed: ComputedReportLab) -> bytes:
+    def render(self, computed: ComputedReportLab) -> bytes:
         """Render ComputedReportLab to PDF bytes.
 
         Args:
@@ -633,11 +506,10 @@ class ReportLabBuilder(BagBuilderBase):
         has_platypus = any(e.get("type") == "platypus" for e in computed.elements)
 
         if has_canvas and not has_platypus:
-            return cls._render_canvas(computed)
-        return cls._render_platypus(computed)
+            return self._render_canvas(computed)
+        return self._render_platypus(computed)
 
-    @classmethod
-    def _render_platypus(cls, computed: ComputedReportLab) -> bytes:
+    def _render_platypus(self, computed: ComputedReportLab) -> bytes:
         """Render using Platypus (flowables)."""
         buffer = BytesIO()
 
@@ -655,7 +527,7 @@ class ReportLabBuilder(BagBuilderBase):
         flowables: list[Any] = []
 
         for elem in computed.elements:
-            flowable = cls._create_flowable(elem, styles)
+            flowable = self._create_flowable(elem, styles)
             if flowable:
                 flowables.append(flowable)
 
@@ -663,22 +535,20 @@ class ReportLabBuilder(BagBuilderBase):
         buffer.seek(0)
         return buffer.read()
 
-    @classmethod
-    def _create_flowable(cls, elem: dict[str, Any], styles: Any) -> Any:
+    def _create_flowable(self, elem: dict[str, Any], styles: Any) -> Any:
         """Create a Platypus flowable from element dict."""
         tag = elem.get("tag", "")
         attr = elem.get("attr", {})
 
         # Dispatch to specific factory method
-        factory = getattr(cls, f"_create_{tag}_flowable", None)
+        factory = getattr(self, f"_create_{tag}_flowable", None)
         if factory:
             return factory(elem, attr, styles)
         return None
 
-    @classmethod
     def _create_paragraph_flowable(
-        cls,
-        elem: dict[str, Any],  # noqa: ARG003
+        self,
+        elem: dict[str, Any],  # noqa: ARG002
         attr: dict[str, Any],
         styles: Any,
     ) -> Any:
@@ -688,34 +558,31 @@ class ReportLabBuilder(BagBuilderBase):
         style = styles.get(style_name, styles["Normal"])
         return Paragraph(content, style)
 
-    @classmethod
     def _create_spacer_flowable(
-        cls,
-        elem: dict[str, Any],  # noqa: ARG003
+        self,
+        elem: dict[str, Any],  # noqa: ARG002
         attr: dict[str, Any],
-        styles: Any,  # noqa: ARG003
+        styles: Any,  # noqa: ARG002
     ) -> Any:
         """Create a Spacer flowable."""
         width = attr.get("width", 0) * mm
         height = attr.get("height", 10) * mm
         return Spacer(width, height)
 
-    @classmethod
     def _create_pagebreak_flowable(
-        cls,
-        elem: dict[str, Any],  # noqa: ARG003
-        attr: dict[str, Any],  # noqa: ARG003
-        styles: Any,  # noqa: ARG003
+        self,
+        elem: dict[str, Any],  # noqa: ARG002
+        attr: dict[str, Any],  # noqa: ARG002
+        styles: Any,  # noqa: ARG002
     ) -> Any:
         """Create a PageBreak flowable."""
         return PageBreak()
 
-    @classmethod
     def _create_image_flowable(
-        cls,
-        elem: dict[str, Any],  # noqa: ARG003
+        self,
+        elem: dict[str, Any],  # noqa: ARG002
         attr: dict[str, Any],
-        styles: Any,  # noqa: ARG003
+        styles: Any,  # noqa: ARG002
     ) -> Any:
         """Create an Image flowable."""
         src = attr.get("src", "")
@@ -727,12 +594,11 @@ class ReportLabBuilder(BagBuilderBase):
             height = height * mm
         return Image(src, width=width, height=height)
 
-    @classmethod
     def _create_table_flowable(
-        cls,
+        self,
         elem: dict[str, Any],
         attr: dict[str, Any],
-        styles: Any,  # noqa: ARG003
+        styles: Any,  # noqa: ARG002
     ) -> Any:
         """Create a Table flowable."""
         data = elem.get("data", [])
@@ -743,8 +609,7 @@ class ReportLabBuilder(BagBuilderBase):
             col_widths = [w * mm for w in col_widths]
         return Table(data, colWidths=col_widths)
 
-    @classmethod
-    def _render_canvas(cls, computed: ComputedReportLab) -> bytes:
+    def _render_canvas(self, computed: ComputedReportLab) -> bytes:
         """Render using Canvas (low-level drawing)."""
         buffer = BytesIO()
 
@@ -756,15 +621,14 @@ class ReportLabBuilder(BagBuilderBase):
         page_height = computed.page_height
 
         for elem in computed.elements:
-            cls._draw_canvas_element(c, elem, page_height)
+            self._draw_canvas_element(c, elem, page_height)
 
         c.save()
         buffer.seek(0)
         return buffer.read()
 
-    @classmethod
     def _draw_canvas_element(
-        cls, c: Any, elem: dict[str, Any], page_height: float
+        self, c: Any, elem: dict[str, Any], page_height: float
     ) -> None:
         """Draw a canvas element."""
         attr = dict(elem.get("attr", {}))

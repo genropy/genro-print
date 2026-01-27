@@ -47,7 +47,7 @@ class LRCPrintBuilder(BagBuilderBase):
         row.cell(content="Title")  # elastic
 
         # Compile to ComputedLayout
-        computed = LRCPrintBuilder.compile(doc)
+        computed = doc.builder.compile(doc)
         ```
     """
 
@@ -77,6 +77,7 @@ class LRCPrintBuilder(BagBuilderBase):
             border_width: Border thickness
             border_color: Border color
         """
+        ...
 
     @element(sub_tags="cell")
     def row(
@@ -90,6 +91,7 @@ class LRCPrintBuilder(BagBuilderBase):
             height: Row height (0 = elastic, expands to fill)
             border: Whether it has border (None = inherit from layout)
         """
+        ...
 
     @element(sub_tags="layout")
     def cell(
@@ -113,9 +115,9 @@ class LRCPrintBuilder(BagBuilderBase):
             lbl_class: CSS class for label
             content_class: CSS class for content
         """
+        ...
 
-    @classmethod
-    def compile(cls, bag: Bag) -> ComputedLayout:
+    def compile(self, bag: Bag) -> ComputedLayout:
         """Compile the Bag to ComputedLayout with resolved dimensions.
 
         Args:
@@ -125,12 +127,12 @@ class LRCPrintBuilder(BagBuilderBase):
             ComputedLayout with all coordinates and dimensions calculated
         """
         # Find root layout node
-        layout_node = cls._find_layout_node(bag)
+        layout_node = self._find_layout_node(bag)
         if layout_node is None:
             msg = "No layout element found in Bag"
             raise ValueError(msg)
 
-        return cls._compile_layout(
+        return self._compile_layout(
             layout_node,
             origin_x=0,
             origin_y=0,
@@ -138,18 +140,16 @@ class LRCPrintBuilder(BagBuilderBase):
             available_height=layout_node.attr.get("height", 297),
         )
 
-    @classmethod
-    def _find_layout_node(cls, bag: Bag) -> BagNode | None:
+    def _find_layout_node(self, bag: Bag) -> BagNode | None:
         """Find the first layout node in the Bag."""
         node: BagNode
         for node in bag:
-            if node.attr.get("tag") == "layout":
+            if node.tag == "layout":
                 return node
         return None
 
-    @classmethod
     def _compile_layout(
-        cls,
+        self,
         node: BagNode,
         origin_x: float,
         origin_y: float,
@@ -174,7 +174,7 @@ class LRCPrintBuilder(BagBuilderBase):
         useful_height = height - top - bottom
 
         # Collect row info
-        row_nodes = [n for n in (node.value or []) if n.attr.get("tag") == "row"]
+        row_nodes = [n for n in (node.value or []) if n.tag == "row"]
 
         fixed_height = sum(
             n.attr.get("height", 0) for n in row_nodes if n.attr.get("height", 0) > 0
@@ -191,7 +191,7 @@ class LRCPrintBuilder(BagBuilderBase):
         for row_node in row_nodes:
             row_height = row_node.attr.get("height", 0) or elastic_height
 
-            computed_cells = cls._compile_row_cells(
+            computed_cells = self._compile_row_cells(
                 row_node,
                 origin_x=origin_x + left,
                 origin_y=current_y,
@@ -225,9 +225,8 @@ class LRCPrintBuilder(BagBuilderBase):
             rows=computed_rows,
         )
 
-    @classmethod
     def _compile_row_cells(
-        cls,
+        self,
         row_node: BagNode,
         origin_x: float,
         origin_y: float,
@@ -238,7 +237,7 @@ class LRCPrintBuilder(BagBuilderBase):
     ) -> list[ComputedCell]:
         """Compile the cells of a row."""
         cell_nodes = [
-            n for n in (row_node.value or []) if n.attr.get("tag") == "cell"
+            n for n in (row_node.value or []) if n.tag == "cell"
         ]
 
         fixed_width = sum(
@@ -267,10 +266,10 @@ class LRCPrintBuilder(BagBuilderBase):
             # Nested layout?
             nested_layout = None
             nested_nodes = [
-                n for n in (cell_node.value or []) if n.attr.get("tag") == "layout"
+                n for n in (cell_node.value or []) if n.tag == "layout"
             ]
             if nested_nodes:
-                nested_layout = cls._compile_layout(
+                nested_layout = self._compile_layout(
                     nested_nodes[0],
                     origin_x=current_x,
                     origin_y=origin_y,
