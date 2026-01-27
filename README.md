@@ -76,6 +76,8 @@ pip install genro-print[all]
 - **table/row/cell**: Tables with styling
 - **image**: Images
 - **Canvas operations**: drawString, rect, circle, line, etc.
+- **Charts**: bar_chart, pie_chart, line_chart
+- **QR Code**: qrcode element
 
 ### LRCPrintApp (Layout/Row/Cell)
 
@@ -103,10 +105,15 @@ examples/
 │   │   ├── multi_page/
 │   │   ├── images_and_shapes/
 │   │   └── invoice/
-│   └── platypus/
-│       ├── flowables/        # Paragraphs, spacers, tables with auto page breaks
-│       ├── with_images/      # Images in documents
-│       └── long_document/    # Multi-page document with mixed content
+│   ├── platypus/
+│   │   ├── flowables/        # Paragraphs, spacers, tables with auto page breaks
+│   │   ├── with_images/      # Images in documents
+│   │   └── long_document/    # Multi-page document with mixed content
+│   └── charts/
+│       ├── bar_chart/        # Vertical bar charts
+│       ├── pie_chart/        # Pie charts with labels
+│       ├── line_chart/       # Line plots
+│       └── qrcode/           # QR codes
 └── lrc/
     ├── basic/
     │   ├── simple_layout/

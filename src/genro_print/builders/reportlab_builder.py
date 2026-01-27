@@ -25,6 +25,13 @@ from genro_bag import Bag
 from genro_bag.builder import BagBuilderBase, element
 
 try:
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.charts.barcharts import VerticalBarChart
+    from reportlab.graphics.charts.lineplots import LinePlot
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.graphics.shapes import Drawing
+    from reportlab.lib.colors import HexColor, toColor
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
@@ -355,6 +362,110 @@ class ReportLabBuilder(BagBuilderBase):
         ...
 
     # -------------------------------------------------------------------------
+    # Graphics elements (charts, drawings)
+    # -------------------------------------------------------------------------
+
+    @element(sub_tags="", compile_type="graphics")
+    def bar_chart(
+        self,
+        data: list[list[float]] | None = None,
+        categories: list[str] | None = None,
+        x: float = 0.0,
+        y: float = 0.0,
+        width: float = 100.0,
+        height: float = 80.0,
+        colors: list[str] | None = None,
+        bar_width: float = 10.0,
+        group_spacing: float = 5.0,
+    ) -> None:
+        """A vertical bar chart.
+
+        Args:
+            data: List of data series (e.g., [[10, 20, 30], [15, 25, 35]])
+            categories: Category labels for X axis
+            x: X position in mm
+            y: Y position in mm (from top)
+            width: Chart width in mm
+            height: Chart height in mm
+            colors: List of colors for each series (hex or names)
+            bar_width: Width of each bar in points
+            group_spacing: Spacing between bar groups in points
+        """
+        ...
+
+    @element(sub_tags="", compile_type="graphics")
+    def pie_chart(
+        self,
+        data: list[float] | None = None,
+        labels: list[str] | None = None,
+        x: float = 0.0,
+        y: float = 0.0,
+        width: float = 100.0,
+        height: float = 100.0,
+        colors: list[str] | None = None,
+        start_angle: float = 90.0,
+    ) -> None:
+        """A pie chart.
+
+        Args:
+            data: List of values
+            labels: Labels for each slice
+            x: X position in mm
+            y: Y position in mm (from top)
+            width: Chart width in mm
+            height: Chart height in mm
+            colors: List of colors for each slice (hex or names)
+            start_angle: Starting angle in degrees (default 90 = top)
+        """
+        ...
+
+    @element(sub_tags="", compile_type="graphics")
+    def line_chart(
+        self,
+        data: list[list[tuple[float, float]]] | None = None,
+        x: float = 0.0,
+        y: float = 0.0,
+        width: float = 100.0,
+        height: float = 80.0,
+        colors: list[str] | None = None,
+        stroke_width: float = 1.0,
+    ) -> None:
+        """A line chart (line plot).
+
+        Args:
+            data: List of series, each series is list of (x, y) tuples
+            x: X position in mm
+            y: Y position in mm (from top)
+            width: Chart width in mm
+            height: Chart height in mm
+            colors: List of colors for each line (hex or names)
+            stroke_width: Line width in points
+        """
+        ...
+
+    @element(sub_tags="", compile_type="graphics")
+    def qrcode(
+        self,
+        value: str = "",
+        x: float = 0.0,
+        y: float = 0.0,
+        size: float = 40.0,
+        bar_width: float = 1.0,
+        bar_height: float = 1.0,
+    ) -> None:
+        """A QR code.
+
+        Args:
+            value: The data to encode in the QR code
+            x: X position in mm
+            y: Y position in mm (from top)
+            size: QR code size in mm
+            bar_width: Width of each module (default 1)
+            bar_height: Height of each module (default 1)
+        """
+        ...
+
+    # -------------------------------------------------------------------------
     # Compile: transform Bag to ComputedReportLab
     # -------------------------------------------------------------------------
 
@@ -501,11 +612,13 @@ class ReportLabBuilder(BagBuilderBase):
             msg = "ReportLab required: pip install reportlab"
             raise ImportError(msg)
 
-        # Check if we have canvas elements (low-level) or platypus (high-level)
+        # Check what types of elements we have
         has_canvas = any(e.get("type") == "canvas" for e in computed.elements)
         has_platypus = any(e.get("type") == "platypus" for e in computed.elements)
+        has_graphics = any(e.get("type") == "graphics" for e in computed.elements)
 
-        if has_canvas and not has_platypus:
+        # Graphics elements require canvas rendering
+        if has_graphics or (has_canvas and not has_platypus):
             return self._render_canvas(computed)
         return self._render_platypus(computed)
 
@@ -610,7 +723,7 @@ class ReportLabBuilder(BagBuilderBase):
         return Table(data, colWidths=col_widths)
 
     def _render_canvas(self, computed: ComputedReportLab) -> bytes:
-        """Render using Canvas (low-level drawing)."""
+        """Render using Canvas (low-level drawing) and Graphics."""
         buffer = BytesIO()
 
         c = canvas.Canvas(
@@ -621,7 +734,11 @@ class ReportLabBuilder(BagBuilderBase):
         page_height = computed.page_height
 
         for elem in computed.elements:
-            self._draw_canvas_element(c, elem, page_height)
+            elem_type = elem.get("type")
+            if elem_type == "graphics":
+                self._draw_graphics_element(c, elem, page_height)
+            elif elem_type == "canvas":
+                self._draw_canvas_element(c, elem, page_height)
 
         c.save()
         buffer.seek(0)
@@ -637,28 +754,13 @@ class ReportLabBuilder(BagBuilderBase):
         if not method_name:
             return
 
-        # Transform coordinates (top-left to bottom-left)
-        if "y" in attr:
-            attr["y"] = (page_height - attr["y"]) * mm
-        if "x" in attr:
-            attr["x"] = attr["x"] * mm
-        if "y1" in attr:
-            attr["y1"] = (page_height - attr["y1"]) * mm
-        if "y2" in attr:
-            attr["y2"] = (page_height - attr["y2"]) * mm
-        if "x1" in attr:
-            attr["x1"] = attr["x1"] * mm
-        if "x2" in attr:
-            attr["x2"] = attr["x2"] * mm
-        if "y_cen" in attr:
-            attr["y_cen"] = (page_height - attr["y_cen"]) * mm
-        if "x_cen" in attr:
-            attr["x_cen"] = attr["x_cen"] * mm
+        # Transform coordinates and dimensions
+        self._transform_canvas_coords(attr, page_height)
 
-        # Convert dimensions to points
-        for key in ["width", "height", "r", "radius"]:
-            if key in attr:
-                attr[key] = attr[key] * mm
+        # Handle special parameter mappings for ReportLab methods
+        # setFillColor and setStrokeColor expect 'aColor' not 'color'
+        if method_name in ("setFillColor", "setStrokeColor") and "color" in attr:
+            attr["aColor"] = self._parse_color(attr.pop("color"))
 
         # Get canvas method
         canvas_method = getattr(c, method_name, None)
@@ -668,3 +770,202 @@ class ReportLabBuilder(BagBuilderBase):
             valid_params = set(sig.parameters.keys())
             filtered_attr = {k: v for k, v in attr.items() if k in valid_params}
             canvas_method(**filtered_attr)
+
+    def _transform_canvas_coords(
+        self, attr: dict[str, Any], page_height: float
+    ) -> None:
+        """Transform coordinates from top-left to bottom-left and mm to points."""
+        # X coordinates: just convert mm to points
+        x_keys = ("x", "x1", "x2", "x_cen")
+        for key in x_keys:
+            if key in attr:
+                attr[key] = attr[key] * mm
+
+        # Y coordinates: flip and convert mm to points
+        y_keys = ("y", "y1", "y2", "y_cen")
+        for key in y_keys:
+            if key in attr:
+                attr[key] = (page_height - attr[key]) * mm
+
+        # Convert dimensions to points
+        dim_keys = ("width", "height", "r", "radius")
+        for key in dim_keys:
+            if key in attr:
+                attr[key] = attr[key] * mm
+
+    def _draw_graphics_element(
+        self, c: Any, elem: dict[str, Any], page_height: float
+    ) -> None:
+        """Draw a graphics element (charts, etc.)."""
+        tag = elem.get("tag", "")
+        attr = elem.get("attr", {})
+
+        # Dispatch to specific drawing method
+        draw_method = getattr(self, f"_draw_{tag}", None)
+        if draw_method:
+            draw_method(c, attr, page_height)
+
+    def _parse_color(self, color: str) -> Any:
+        """Parse color string to ReportLab color."""
+        if color.startswith("#"):
+            return HexColor(color)
+        return toColor(color)
+
+    def _draw_bar_chart(
+        self, c: Any, attr: dict[str, Any], page_height: float
+    ) -> None:
+        """Draw a vertical bar chart."""
+        data = attr.get("data") or [[10, 20, 30, 40]]
+        categories = attr.get("categories")
+        x = attr.get("x", 0) * mm
+        y_top = attr.get("y", 0)
+        width = attr.get("width", 100) * mm
+        height = attr.get("height", 80) * mm
+        colors = attr.get("colors")
+        bar_width = attr.get("bar_width", 10)
+        group_spacing = attr.get("group_spacing", 5)
+
+        # Create Drawing
+        drawing = Drawing(width, height)
+
+        # Create chart
+        chart = VerticalBarChart()
+        chart.x = 30  # leave space for labels
+        chart.y = 20
+        chart.width = width - 50
+        chart.height = height - 40
+        chart.data = data
+        chart.barWidth = bar_width
+        chart.groupSpacing = group_spacing
+
+        # Set categories if provided
+        if categories:
+            chart.categoryAxis.categoryNames = categories
+
+        # Set colors if provided
+        if colors:
+            for i, color in enumerate(colors):
+                if i < len(chart.bars):
+                    chart.bars[i].fillColor = self._parse_color(color)
+
+        drawing.add(chart)
+
+        # Convert Y coordinate (top-left to bottom-left)
+        y_pt = (page_height - y_top) * mm - height
+
+        # Render drawing to canvas
+        renderPDF.draw(drawing, c, x, y_pt)
+
+    def _draw_pie_chart(
+        self, c: Any, attr: dict[str, Any], page_height: float
+    ) -> None:
+        """Draw a pie chart."""
+        data = attr.get("data") or [10, 20, 30, 40]
+        labels = attr.get("labels")
+        x = attr.get("x", 0) * mm
+        y_top = attr.get("y", 0)
+        width = attr.get("width", 100) * mm
+        height = attr.get("height", 100) * mm
+        colors = attr.get("colors")
+        start_angle = attr.get("start_angle", 90)
+
+        # Create Drawing
+        drawing = Drawing(width, height)
+
+        # Create pie chart
+        pie = Pie()
+        pie.x = 10
+        pie.y = 10
+        pie.width = width - 20
+        pie.height = height - 20
+        pie.data = data
+        pie.startAngle = start_angle
+
+        # Set labels if provided
+        if labels:
+            pie.labels = labels
+
+        # Set colors if provided
+        if colors:
+            for i, color in enumerate(colors):
+                if i < len(pie.slices):
+                    pie.slices[i].fillColor = self._parse_color(color)
+
+        drawing.add(pie)
+
+        # Convert Y coordinate (top-left to bottom-left)
+        y_pt = (page_height - y_top) * mm - height
+
+        # Render drawing to canvas
+        renderPDF.draw(drawing, c, x, y_pt)
+
+    def _draw_line_chart(
+        self, c: Any, attr: dict[str, Any], page_height: float
+    ) -> None:
+        """Draw a line chart (line plot)."""
+        data = attr.get("data") or [[(0, 10), (1, 20), (2, 30), (3, 25)]]
+        x = attr.get("x", 0) * mm
+        y_top = attr.get("y", 0)
+        width = attr.get("width", 100) * mm
+        height = attr.get("height", 80) * mm
+        colors = attr.get("colors")
+        stroke_width = attr.get("stroke_width", 1)
+
+        # Create Drawing
+        drawing = Drawing(width, height)
+
+        # Create line plot
+        lp = LinePlot()
+        lp.x = 30  # leave space for labels
+        lp.y = 20
+        lp.width = width - 50
+        lp.height = height - 40
+        lp.data = data
+
+        # Set line properties
+        for i in range(len(data)):
+            lp.lines[i].strokeWidth = stroke_width
+            if colors and i < len(colors):
+                lp.lines[i].strokeColor = self._parse_color(colors[i])
+
+        drawing.add(lp)
+
+        # Convert Y coordinate (top-left to bottom-left)
+        y_pt = (page_height - y_top) * mm - height
+
+        # Render drawing to canvas
+        renderPDF.draw(drawing, c, x, y_pt)
+
+    def _draw_qrcode(
+        self, c: Any, attr: dict[str, Any], page_height: float
+    ) -> None:
+        """Draw a QR code."""
+        value = attr.get("value", "")
+        if not value:
+            return
+
+        x = attr.get("x", 0) * mm
+        y_top = attr.get("y", 0)
+        size = attr.get("size", 40) * mm
+        bar_width = attr.get("bar_width", 1)
+        bar_height = attr.get("bar_height", 1)
+
+        # Create QR code
+        qr_code = qr.QrCodeWidget(value)
+        qr_code.barWidth = bar_width
+        qr_code.barHeight = bar_height
+
+        # Get the bounds of the QR code
+        bounds = qr_code.getBounds()
+        qr_width = bounds[2] - bounds[0]
+        qr_height = bounds[3] - bounds[1]
+
+        # Create drawing with scaled size
+        drawing = Drawing(size, size, transform=[size / qr_width, 0, 0, size / qr_height, 0, 0])
+        drawing.add(qr_code)
+
+        # Convert Y coordinate (top-left to bottom-left)
+        y_pt = (page_height - y_top) * mm - size
+
+        # Render drawing to canvas
+        renderPDF.draw(drawing, c, x, y_pt)
