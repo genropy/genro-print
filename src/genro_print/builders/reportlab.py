@@ -4,18 +4,18 @@
 """
 ReportLabBuilder: PDF renderer using ReportLab.
 
-Riceve un ComputedLayout (prodotto da LRCPrintBuilder) e genera
-un PDF usando le API ReportLab Canvas.
+Receives a ComputedLayout (produced by LRCPrintBuilder) and generates
+a PDF using the ReportLab Canvas API.
 
-Responsabilità:
-- Tradurre ComputedLayout in chiamate ReportLab
-- Gestire trasformazione coordinate (top-left → bottom-left)
-- Gestire unità di misura (mm → points)
-- Produrre PDF
+Responsibilities:
+- Translate ComputedLayout into ReportLab calls
+- Handle coordinate transformation (top-left → bottom-left)
+- Handle unit conversion (mm → points)
+- Produce PDF
 
-NON è responsabile di:
-- Calcolare dimensioni elastiche (questo è compito di LRCPrintBuilder)
-- Definire la struttura Layout/Row/Cell
+NOT responsible for:
+- Calculating elastic dimensions (that's LRCPrintBuilder's job)
+- Defining Layout/Row/Cell structure
 """
 
 from __future__ import annotations
@@ -30,41 +30,41 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-    mm = 1  # fallback per type checking
+    mm = 1  # fallback for type checking
 
 if TYPE_CHECKING:
     from genro_print.computed import ComputedCell, ComputedLayout
 
 
 class ReportLabBuilder:
-    """Builder che genera PDF da ComputedLayout usando ReportLab.
+    """Builder that generates PDF from ComputedLayout using ReportLab.
 
-    Esempio d'uso:
+    Example usage:
         ```python
         from genro_bag import Bag
         from genro_print.builders import LRCPrintBuilder, ReportLabBuilder
 
-        # 1. Crea documento con LRCPrintBuilder
+        # 1. Create document with LRCPrintBuilder
         doc = Bag(builder=LRCPrintBuilder)
         layout = doc.layout(width=210, height=297)
         layout.row(height=30).cell(content="Hello")
 
-        # 2. Compila in ComputedLayout
+        # 2. Compile to ComputedLayout
         computed = LRCPrintBuilder.compile(doc)
 
-        # 3. Renderizza in PDF
+        # 3. Render to PDF
         pdf_bytes = ReportLabBuilder(computed).render()
         ```
     """
 
     def __init__(self, computed: ComputedLayout) -> None:
-        """Inizializza il builder con un ComputedLayout.
+        """Initialize the builder with a ComputedLayout.
 
         Args:
-            computed: Layout con dimensioni già calcolate
+            computed: Layout with pre-calculated dimensions
 
         Raises:
-            ImportError: Se reportlab non è installato
+            ImportError: If reportlab is not installed
         """
         if not REPORTLAB_AVAILABLE:
             msg = "ReportLab required: pip install reportlab"
@@ -76,19 +76,19 @@ class ReportLabBuilder:
         self._canvas: canvas.Canvas | None = None
 
     def render(self, output: BytesIO | str | None = None) -> bytes:
-        """Renderizza il ComputedLayout in PDF.
+        """Render the ComputedLayout to PDF.
 
         Args:
-            output: Destinazione output (BytesIO, path file, o None per BytesIO interno)
+            output: Output destination (BytesIO, file path, or None for internal BytesIO)
 
         Returns:
-            bytes del PDF generato
+            PDF bytes
         """
-        # Prepara output
+        # Prepare output
         if output is None:
             output = BytesIO()
         elif isinstance(output, str):
-            # Path file - scrivi direttamente
+            # File path - write directly
             self._canvas = canvas.Canvas(
                 output,
                 pagesize=(self.page_width, self.page_height),
@@ -110,11 +110,11 @@ class ReportLabBuilder:
         return output.read()
 
     def _render_layout(self, layout: ComputedLayout) -> None:
-        """Renderizza un layout e tutte le sue righe/celle."""
+        """Render a layout and all its rows/cells."""
         if self._canvas is None:
             return
 
-        # Bordo layout (se presente)
+        # Layout border (if present)
         if layout.border_width > 0:
             self._draw_rect(
                 x=layout.x,
@@ -126,17 +126,17 @@ class ReportLabBuilder:
                 stroke_color=layout.border_color,
             )
 
-        # Renderizza righe
+        # Render rows
         for row in layout.rows:
             for cell in row.cells:
                 self._render_cell(cell)
 
     def _render_cell(self, cell: ComputedCell) -> None:
-        """Renderizza una singola cella."""
+        """Render a single cell."""
         if self._canvas is None:
             return
 
-        # Bordo cella
+        # Cell border
         if cell.border and cell.border_width > 0:
             self._draw_rect(
                 x=cell.x,
@@ -148,12 +148,12 @@ class ReportLabBuilder:
                 stroke_color=cell.border_color,
             )
 
-        # Layout annidato (ricorsione)
+        # Nested layout (recursion)
         if cell.nested_layout:
             self._render_layout(cell.nested_layout)
             return
 
-        # Contenuto testuale
+        # Text content
         if cell.content:
             self._draw_text(
                 text=cell.content,
@@ -176,14 +176,14 @@ class ReportLabBuilder:
         stroke_width: float = 0.3,
         stroke_color: str = "black",
     ) -> None:
-        """Disegna un rettangolo.
+        """Draw a rectangle.
 
-        Nota: ReportLab usa coordinate bottom-left, quindi trasformiamo Y.
+        Note: ReportLab uses bottom-left coordinates, so we transform Y.
         """
         if self._canvas is None:
             return
 
-        # Trasforma coordinate (top-left → bottom-left)
+        # Transform coordinates (top-left → bottom-left)
         rl_x = x * mm
         rl_y = self.page_height - (y + height) * mm
         rl_width = width * mm
@@ -210,29 +210,29 @@ class ReportLabBuilder:
         lbl: str | None = None,
         lbl_height: float = 0,
     ) -> None:
-        """Disegna testo in una cella.
+        """Draw text in a cell.
 
-        Se c'è una label, la disegna sopra il contenuto.
+        If there's a label, draw it above the content.
         """
         if self._canvas is None:
             return
 
-        # Padding interno
+        # Internal padding
         padding = 2  # mm
 
-        # Coordinate ReportLab
+        # ReportLab coordinates
         rl_x = (x + padding) * mm
 
         if lbl and lbl_height > 0:
-            # Disegna label
+            # Draw label
             lbl_y = self.page_height - (y + lbl_height) * mm
             self._canvas.setFont("Helvetica", 8)
             self._canvas.drawString(rl_x, lbl_y + 2 * mm, lbl)
 
-            # Disegna contenuto sotto la label
+            # Draw content below the label
             content_y = self.page_height - (y + lbl_height + (height - lbl_height) / 2) * mm
         else:
-            # Centra verticalmente
+            # Center vertically
             content_y = self.page_height - (y + height / 2) * mm
 
         self._canvas.setFont("Helvetica", 10)
