@@ -14,17 +14,26 @@ Print and PDF generation system for the Genropy framework.
 Status
 ------
 
-🔴 **Pre-Alpha** - Architecture and documentation phase
+🟡 **Alpha** - Core functionality implemented, API may change
 
 Overview
 --------
 
-``genro-print`` implements a **Layout/Row/Cell** model for document generation with:
+``genro-print`` provides two approaches for PDF generation:
 
+**PrintApp (ReportLab Builder)**
+
+- Paragraphs, tables, images with automatic page breaks (Platypus)
+- Canvas operations (drawString, rect, circle, line)
+- Charts (bar, pie, line) and QR codes
+- Direct ReportLab element access
+
+**LRCPrintApp (Layout/Row/Cell)**
+
+- Elastic grid layouts with auto-calculated dimensions
+- Nested layouts with border inheritance
+- Cell content elements (images, paragraphs, spacers)
 - Pure declarative source using ``genro-bag``
-- Clean separation between source and compiled output
-- WeasyPrint backend for PDF generation
-- Pagination calculation as pure function
 
 Indices and tables
 ==================
