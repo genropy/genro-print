@@ -3,7 +3,7 @@
 
 """Print builders for genro-print."""
 
-from genro_print.builders.lrc import LRCPrintBuilder
+from genro_print.builders.lrc_builder import LRCPrintBuilder
 
 __all__ = [
     "LRCPrintBuilder",
