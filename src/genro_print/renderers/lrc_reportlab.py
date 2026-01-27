@@ -18,10 +18,18 @@ from typing import TYPE_CHECKING
 
 from reportlab.lib.colors import HexColor, toColor
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
+from genro_print.computed import CellElementType
+
 if TYPE_CHECKING:
-    from genro_print.computed import ComputedCell, ComputedLayout, ComputedRow
+    from genro_print.computed import (
+        ComputedCell,
+        ComputedCellElement,
+        ComputedLayout,
+        ComputedRow,
+    )
 
 
 class LRCReportLabRenderer:
@@ -101,7 +109,7 @@ class LRCReportLabRenderer:
             content_y += cell.lbl_height
             content_height -= cell.lbl_height
 
-        # Draw content if present
+        # Draw content if present (simple text, backward compatible)
         if cell.content:
             self._draw_text(
                 c,
@@ -111,6 +119,17 @@ class LRCReportLabRenderer:
                 width=cell.computed_width - 2,
                 height=content_height - 2,
                 font_size=10,
+            )
+
+        # Render cell elements (image, paragraph, spacer)
+        if cell.elements:
+            self._render_cell_elements(
+                c,
+                elements=cell.elements,
+                x=cell.x + 1,
+                y=content_y + 1,
+                width=cell.computed_width - 2,
+                height=content_height - 2,
             )
 
         # Render nested layout if present
@@ -182,4 +201,130 @@ class LRCReportLabRenderer:
         """Parse color string to ReportLab color."""
         if color.startswith("#"):
             return HexColor(color)
-        return toColor(color)
+        result: HexColor = toColor(color)
+        return result
+
+    def _render_cell_elements(
+        self,
+        c: canvas.Canvas,
+        elements: list[ComputedCellElement],
+        x: float,
+        y: float,
+        width: float,
+        height: float,  # noqa: ARG002
+    ) -> None:
+        """Render cell child elements (image, paragraph, spacer).
+
+        Args:
+            c: ReportLab canvas
+            elements: List of cell elements to render
+            x: Starting X coordinate in mm
+            y: Starting Y coordinate in mm
+            width: Available width in mm
+            height: Available height in mm
+        """
+        current_y = y
+
+        for elem in elements:
+            if elem.element_type == CellElementType.IMAGE:
+                current_y = self._render_image_element(
+                    c, elem, x, current_y, width
+                )
+            elif elem.element_type == CellElementType.PARAGRAPH:
+                current_y = self._render_paragraph_element(
+                    c, elem, x, current_y, width
+                )
+            elif elem.element_type == CellElementType.SPACER:
+                current_y += elem.attrs.get("height", 5)
+
+    def _render_image_element(
+        self,
+        c: canvas.Canvas,
+        elem: ComputedCellElement,
+        x: float,
+        y: float,
+        available_width: float,
+    ) -> float:
+        """Render an image element. Returns new Y position."""
+        attrs = elem.attrs
+        src = attrs.get("src", "")
+        if not src:
+            return y
+
+        img_width = attrs.get("width", 0)
+        img_height = attrs.get("height", 0)
+        align = attrs.get("align", "left")
+
+        # Load image to get dimensions if needed
+        try:
+            img = ImageReader(src)
+            native_width, native_height = img.getSize()
+
+            # Calculate dimensions
+            if img_width == 0 and img_height == 0:
+                # Use native size (convert pixels to mm, assuming 72 dpi)
+                img_width = native_width * 25.4 / 72
+                img_height = native_height * 25.4 / 72
+            elif img_width == 0:
+                # Calculate width from height preserving aspect ratio
+                img_width = img_height * native_width / native_height
+            elif img_height == 0:
+                # Calculate height from width preserving aspect ratio
+                img_height = img_width * native_height / native_width
+
+            # Horizontal alignment
+            if align == "center":
+                img_x = x + (available_width - img_width) / 2
+            elif align == "right":
+                img_x = x + available_width - img_width
+            else:
+                img_x = x
+
+            # Draw image (convert mm to points, flip Y)
+            x_pt = img_x * mm
+            y_pt = self._page_height - (y * mm) - (img_height * mm)
+
+            c.drawImage(
+                img,
+                x_pt,
+                y_pt,
+                width=img_width * mm,
+                height=img_height * mm,
+                preserveAspectRatio=True,
+            )
+
+            new_y: float = y + img_height
+            return new_y
+        except Exception:
+            # If image fails to load, just skip it
+            return y
+
+    def _render_paragraph_element(
+        self,
+        c: canvas.Canvas,
+        elem: ComputedCellElement,
+        x: float,
+        y: float,
+        width: float,  # noqa: ARG002
+    ) -> float:
+        """Render a paragraph element. Returns new Y position."""
+        attrs = elem.attrs
+        content = attrs.get("content", "")
+        if not content:
+            return y
+
+        font_name = attrs.get("font_name", "Helvetica")
+        font_size = attrs.get("font_size", 10)
+        color = attrs.get("color", "black")
+
+        # Simple single-line text for now
+        x_pt = x * mm
+        y_pt = self._page_height - (y * mm) - font_size
+
+        c.setFont(font_name, font_size)
+        c.setFillColor(self._parse_color(color))
+        c.drawString(x_pt, y_pt, content)
+
+        # Approximate line height
+        line_height: float = font_size * 1.2 / mm  # convert back to mm
+        return y + line_height

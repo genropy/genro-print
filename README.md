@@ -83,6 +83,10 @@ pip install genro-print[all]
 - **Nested layouts**: Cells can contain sub-layouts
 - **Border inheritance**: Borders propagate from layout → row → cell
 - **Margin support**: top, bottom, left, right margins
+- **Cell content elements**: Cells can contain:
+  - `image`: Images with alignment (left, center, right)
+  - `paragraph`: Styled text with font, size, color
+  - `spacer`: Vertical spacing
 
 ## Examples
 
@@ -103,9 +107,11 @@ examples/
 │       ├── flowables/        # Paragraphs, spacers, tables with auto page breaks
 │       ├── with_images/      # Images in documents
 │       └── long_document/    # Multi-page document with mixed content
-└── lrc/basic/
-    ├── simple_layout/
-    └── nested_elastic/
+└── lrc/
+    ├── basic/
+    │   ├── simple_layout/
+    │   └── nested_elastic/
+    └── with_elements/        # Images, paragraphs, spacers in cells
 ```
 
 Each example folder contains a `.py` file and the generated `.pdf`.

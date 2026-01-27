@@ -25,7 +25,13 @@ from typing import TYPE_CHECKING
 from genro_bag import BagBuilderBase
 from genro_bag.builder import element
 
-from genro_print.computed import ComputedCell, ComputedLayout, ComputedRow
+from genro_print.computed import (
+    CellElementType,
+    ComputedCell,
+    ComputedCellElement,
+    ComputedLayout,
+    ComputedRow,
+)
 
 if TYPE_CHECKING:
     from genro_bag import Bag, BagNode
@@ -93,7 +99,7 @@ class LRCPrintBuilder(BagBuilderBase):
         """
         ...
 
-    @element(sub_tags="layout")
+    @element(sub_tags="layout,image,paragraph,spacer")
     def cell(
         self,
         width: float = 0,
@@ -104,16 +110,70 @@ class LRCPrintBuilder(BagBuilderBase):
         lbl_class: str | None = None,
         content_class: str | None = None,
     ) -> None:
-        """Cell - can contain nested Layout or content.
+        """Cell - can contain nested Layout, content elements, or simple text.
 
         Args:
             width: Cell width (0 = elastic, expands to fill)
             border: Whether it has border (None = inherit from row)
-            content: Text content
+            content: Text content (simple text, for backward compatibility)
             lbl: Label above content
             lbl_height: Label height
             lbl_class: CSS class for label
             content_class: CSS class for content
+        """
+        ...
+
+    @element()
+    def image(
+        self,
+        src: str = "",
+        width: float = 0,
+        height: float = 0,
+        align: str = "left",
+        valign: str = "top",
+    ) -> None:
+        """Image element inside a cell.
+
+        Args:
+            src: Path to image file
+            width: Image width in mm (0 = auto from aspect ratio)
+            height: Image height in mm (0 = auto from aspect ratio)
+            align: Horizontal alignment (left, center, right)
+            valign: Vertical alignment (top, middle, bottom)
+        """
+        ...
+
+    @element()
+    def paragraph(
+        self,
+        content: str = "",
+        style: str = "Normal",
+        font_name: str = "Helvetica",
+        font_size: float = 10,
+        color: str = "black",
+        align: str = "left",
+    ) -> None:
+        """Paragraph element inside a cell.
+
+        Args:
+            content: Text content
+            style: Paragraph style name
+            font_name: Font name
+            font_size: Font size in points
+            color: Text color
+            align: Text alignment (left, center, right, justify)
+        """
+        ...
+
+    @element()
+    def spacer(
+        self,
+        height: float = 5,
+    ) -> None:
+        """Vertical spacer inside a cell.
+
+        Args:
+            height: Spacer height in mm
         """
         ...
 
@@ -277,6 +337,9 @@ class LRCPrintBuilder(BagBuilderBase):
                     available_height=row_height,
                 )
 
+            # Compile cell elements (image, paragraph, spacer)
+            elements = self._compile_cell_elements(cell_node)
+
             computed_cells.append(
                 ComputedCell(
                     x=current_x,
@@ -288,6 +351,7 @@ class LRCPrintBuilder(BagBuilderBase):
                     border_color=layout_border_color,
                     content=attr.get("content"),
                     nested_layout=nested_layout,
+                    elements=elements,
                     lbl=attr.get("lbl"),
                     lbl_height=attr.get("lbl_height", 0),
                     lbl_class=attr.get("lbl_class"),
@@ -298,3 +362,51 @@ class LRCPrintBuilder(BagBuilderBase):
             current_x += cell_width
 
         return computed_cells
+
+    def _compile_cell_elements(self, cell_node: BagNode) -> list[ComputedCellElement]:
+        """Compile child elements of a cell (image, paragraph, spacer)."""
+        elements: list[ComputedCellElement] = []
+
+        for child in cell_node.value or []:
+            tag = child.tag
+            if tag == "layout":
+                continue  # handled separately as nested_layout
+
+            if tag == "image":
+                elements.append(
+                    ComputedCellElement(
+                        element_type=CellElementType.IMAGE,
+                        attrs={
+                            "src": child.attr.get("src", ""),
+                            "width": child.attr.get("width", 0),
+                            "height": child.attr.get("height", 0),
+                            "align": child.attr.get("align", "left"),
+                            "valign": child.attr.get("valign", "top"),
+                        },
+                    )
+                )
+            elif tag == "paragraph":
+                elements.append(
+                    ComputedCellElement(
+                        element_type=CellElementType.PARAGRAPH,
+                        attrs={
+                            "content": child.attr.get("content", ""),
+                            "style": child.attr.get("style", "Normal"),
+                            "font_name": child.attr.get("font_name", "Helvetica"),
+                            "font_size": child.attr.get("font_size", 10),
+                            "color": child.attr.get("color", "black"),
+                            "align": child.attr.get("align", "left"),
+                        },
+                    )
+                )
+            elif tag == "spacer":
+                elements.append(
+                    ComputedCellElement(
+                        element_type=CellElementType.SPACER,
+                        attrs={
+                            "height": child.attr.get("height", 5),
+                        },
+                    )
+                )
+
+        return elements

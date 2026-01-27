@@ -4,13 +4,17 @@
 """Computed layout structures with resolved dimensions."""
 
 from genro_print.computed.layout import (
+    CellElementType,
     ComputedCell,
+    ComputedCellElement,
     ComputedLayout,
     ComputedRow,
 )
 
 __all__ = [
+    "CellElementType",
     "ComputedCell",
+    "ComputedCellElement",
     "ComputedLayout",
     "ComputedRow",
 ]

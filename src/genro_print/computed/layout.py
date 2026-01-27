@@ -15,6 +15,29 @@ ReportLabBuilder (which consumes them to generate PDF).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class CellElementType(Enum):
+    """Types of elements that can be placed inside a cell."""
+
+    IMAGE = "image"
+    PARAGRAPH = "paragraph"
+    SPACER = "spacer"
+
+
+@dataclass
+class ComputedCellElement:
+    """Element inside a cell (image, paragraph, spacer).
+
+    Attributes:
+        element_type: Type of element (image, paragraph, spacer)
+        attrs: Element-specific attributes
+    """
+
+    element_type: CellElementType
+    attrs: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -29,8 +52,9 @@ class ComputedCell:
         border: Whether the cell has a border
         border_width: Border thickness (mm)
         border_color: Border color
-        content: Text content (if present)
+        content: Text content (if present, for simple text)
         nested_layout: Nested layout (if present)
+        elements: List of child elements (image, paragraph, spacer)
     """
 
     x: float
@@ -42,6 +66,7 @@ class ComputedCell:
     border_color: str = "black"
     content: str | None = None
     nested_layout: ComputedLayout | None = None
+    elements: list[ComputedCellElement] = field(default_factory=list)
 
     # Optional label attributes
     lbl: str | None = None
