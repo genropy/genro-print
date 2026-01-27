@@ -11,7 +11,7 @@ __all__ = [
 
 # ReportLabBuilder is optional - only available if reportlab is installed
 try:
-    from genro_print.builders.reportlab import ReportLabBuilder as ReportLabBuilder
+    from genro_print.builders.reportlab_builder import ReportLabBuilder as ReportLabBuilder
 
     __all__.append("ReportLabBuilder")
 except ImportError:
