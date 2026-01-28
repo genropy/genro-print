@@ -16,3 +16,13 @@ try:
     __all__.append("ReportLabBuilder")
 except ImportError:
     pass
+
+# ReportLabEnhancedBuilder is optional - only available if reportlab is installed
+try:
+    from genro_print.builders.reportlab_enhanced_builder import (
+        ReportLabEnhancedBuilder as ReportLabEnhancedBuilder,
+    )
+
+    __all__.append("ReportLabEnhancedBuilder")
+except ImportError:
+    pass

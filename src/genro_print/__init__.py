@@ -70,6 +70,24 @@ try:
 except ImportError:
     pass
 
+# Optional: EnhancedPrintApp (requires reportlab)
+try:
+    from genro_print.enhanced_print_app import EnhancedPrintApp as EnhancedPrintApp
+
+    __all__.append("EnhancedPrintApp")
+except ImportError:
+    pass
+
+# Optional: ReportLabEnhancedBuilder (requires reportlab)
+try:
+    from genro_print.builders.reportlab_enhanced_builder import (
+        ReportLabEnhancedBuilder as ReportLabEnhancedBuilder,
+    )
+
+    __all__.append("ReportLabEnhancedBuilder")
+except ImportError:
+    pass
+
 # Optional: LRCReportLabRenderer (requires reportlab)
 try:
     from genro_print.renderers import LRCReportLabRenderer as LRCReportLabRenderer
