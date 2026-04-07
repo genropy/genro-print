@@ -7,10 +7,10 @@ Demonstrates the labeledtext component for labeled fields.
 
 from pathlib import Path
 
-from genro_print.enhanced_print_app import EnhancedPrintApp
+from genro_print import StyledPrintApp
 
 
-class LabeledTextDemo(EnhancedPrintApp):
+class LabeledTextDemo(StyledPrintApp):
     """Demonstration of labeledtext component."""
 
     def recipe(self, root):

@@ -3,26 +3,12 @@
 
 """Print builders for genro-print."""
 
-from genro_print.builders.lrc_builder import LRCPrintBuilder
+from genro_print.builders.print_builder import PrintBuilder
+from genro_print.builders.print_lrc_builder import PrintLRCBuilder
+from genro_print.builders.print_styled_builder import PrintStyledBuilder
 
 __all__ = [
-    "LRCPrintBuilder",
+    "PrintBuilder",
+    "PrintLRCBuilder",
+    "PrintStyledBuilder",
 ]
-
-# ReportLabBuilder is optional - only available if reportlab is installed
-try:
-    from genro_print.builders.reportlab_builder import ReportLabBuilder as ReportLabBuilder
-
-    __all__.append("ReportLabBuilder")
-except ImportError:
-    pass
-
-# ReportLabEnhancedBuilder is optional - only available if reportlab is installed
-try:
-    from genro_print.builders.reportlab_enhanced_builder import (
-        ReportLabEnhancedBuilder as ReportLabEnhancedBuilder,
-    )
-
-    __all__.append("ReportLabEnhancedBuilder")
-except ImportError:
-    pass

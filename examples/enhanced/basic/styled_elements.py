@@ -8,10 +8,10 @@ the inherited style attributes.
 
 from pathlib import Path
 
-from genro_print.enhanced_print_app import EnhancedPrintApp
+from genro_print import StyledPrintApp
 
 
-class StyledElementsDemo(EnhancedPrintApp):
+class StyledElementsDemo(StyledPrintApp):
     """Demonstration of styled elements with inheritance and override."""
 
     def recipe(self, root):

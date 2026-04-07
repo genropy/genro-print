@@ -8,11 +8,11 @@ Print and PDF generation system for the Genropy framework.
 
 ## Overview
 
-`genro-print` provides two approaches for PDF generation:
+`genro-print` provides three approaches for PDF generation, all built on genro-builders v0.12.0 infrastructure:
 
-### 1. ReportLab Builder (Direct)
+### 1. PrintApp (Platypus + Canvas)
 
-Use ReportLab elements directly (paragraphs, tables, images, shapes).
+Use ReportLab elements directly (paragraphs, tables, images, shapes, charts).
 
 ```python
 from genro_print import PrintApp
@@ -27,7 +27,7 @@ class MyReport(PrintApp):
 MyReport().save("report.pdf")
 ```
 
-### 2. Layout/Row/Cell Builder (Elastic Grid)
+### 2. LRCPrintApp (Layout/Row/Cell)
 
 Define layouts with elastic dimensions that auto-calculate.
 
@@ -38,19 +38,52 @@ class MyReport(LRCPrintApp):
     def recipe(self, root):
         layout = root.layout(width=210.0, height=297.0, top=10.0, bottom=10.0)
 
-        # Header row (fixed height)
         header = layout.row(height=25.0, border=True)
         header.cell(width=50.0, content="Logo")
         header.cell(content="Title")  # elastic width
 
-        # Content rows (elastic height)
-        row1 = layout.row(height=0, border=True)  # elastic
-        row1.cell(content="Row 1")
+        row = layout.row(height=0, border=True)  # elastic height
+        row.cell(content="Content")
 
-        row2 = layout.row(height=0, border=True)  # elastic
-        row2.cell(content="Row 2")
+MyReport().save("report.pdf")
+```
 
-LRCPrintApp().save("report.pdf")
+### 3. StyledPrintApp (Declarative Styled Elements)
+
+Position shapes and text with inherited styles via styledblock containers.
+
+```python
+from genro_print import StyledPrintApp
+
+class MyReport(StyledPrintApp):
+    def recipe(self, root):
+        doc = root.document(width=210.0, height=297.0)
+        block = doc.styledblock(fontname="Helvetica-Bold", size=14.0, color="navy")
+        block.statictext(x=20.0, y=50.0, text="Title")
+        block.styledrect(x=20.0, y=70.0, width=100.0, height=40.0,
+                         fill_color="lightblue")
+
+MyReport().save("report.pdf")
+```
+
+### Data Binding
+
+All app classes support `^pointer` data binding via `store()`:
+
+```python
+from genro_print import PrintApp
+
+class InvoiceReport(PrintApp):
+    def store(self, data):
+        data['company'] = 'Acme Corp'
+        data['invoice_no'] = 'INV-2025-001'
+
+    def recipe(self, root):
+        root.document(width=210.0, height=297.0)
+        root.paragraph(content="^company", style="Title")
+        root.paragraph(content="^invoice_no")
+
+InvoiceReport().save("invoice.pdf")
 ```
 
 ## Installation
@@ -67,28 +100,27 @@ pip install genro-print[all]
 
 ## Features
 
-### PrintApp (ReportLab Builder)
+### PrintApp (Platypus + Canvas)
 
-- **document**: Page setup (width, height)
-- **paragraph**: Text with styles
-- **spacer**: Vertical space
-- **pagebreak**: Force new page
-- **table/row/cell**: Tables with styling
-- **image**: Images
-- **Canvas operations**: drawString, rect, circle, line, etc.
+- **Platypus**: paragraph, spacer, pagebreak, table/row/cell, image
+- **Canvas**: drawString, rect, circle, line, ellipse, roundRect, etc.
 - **Charts**: bar_chart, pie_chart, line_chart
 - **QR Code**: qrcode element
 
 ### LRCPrintApp (Layout/Row/Cell)
 
 - **Elastic dimensions**: `width=0` or `height=0` auto-calculates
-- **Nested layouts**: Cells can contain sub-layouts
-- **Border inheritance**: Borders propagate from layout → row → cell
-- **Margin support**: top, bottom, left, right margins
-- **Cell content elements**: Cells can contain:
-  - `image`: Images with alignment (left, center, right)
-  - `paragraph`: Styled text with font, size, color
-  - `spacer`: Vertical spacing
+- **Nested layouts**: Cells can contain sub-layouts (fractal)
+- **Border inheritance**: Borders propagate from layout to row to cell
+- **Cell content**: image, paragraph, spacer inside cells
+- **Components**: page_template (with slot), two_column_row, label_value_row
+
+### StyledPrintApp (Styled Elements)
+
+- **Style inheritance**: styledblock attributes propagate to children
+- **Styled shapes**: styledrect, styledcircle, styledellipse, styledline
+- **Positioned text**: statictext with alignment
+- **Components**: labeledtext, titled_box
 
 ## Examples
 
@@ -97,51 +129,48 @@ See the `examples/` directory:
 ```text
 examples/
 ├── reportlab/
-│   ├── basic/
-│   │   ├── hello_world/
-│   │   ├── multi_paragraph/
-│   │   ├── simple_table/
-│   │   ├── styled_table/
-│   │   ├── multi_page/
-│   │   ├── images_and_shapes/
-│   │   └── invoice/
-│   ├── platypus/
-│   │   ├── flowables/        # Paragraphs, spacers, tables with auto page breaks
-│   │   ├── with_images/      # Images in documents
-│   │   └── long_document/    # Multi-page document with mixed content
-│   └── charts/
-│       ├── bar_chart/        # Vertical bar charts
-│       ├── pie_chart/        # Pie charts with labels
-│       ├── line_chart/       # Line plots
-│       └── qrcode/           # QR codes
-└── lrc/
-    ├── basic/
-    │   ├── simple_layout/
-    │   └── nested_elastic/
-    └── with_elements/        # Images, paragraphs, spacers in cells
+│   ├── basic/           # hello_world, table, invoice, shapes, multi_page
+│   ├── platypus/        # flowables, long_document, with_images
+│   └── charts/          # bar_chart, pie_chart, line_chart, qrcode
+├── lrc/
+│   ├── basic/           # simple_layout, nested_elastic
+│   └── with_elements/   # image, paragraph, spacer in cells
+└── enhanced/
+    ├── basic/           # styled_elements with inheritance
+    ├── components/      # labeledtext demo
+    └── styledblocks/    # nested style override
 ```
-
-Each example folder contains a `.py` file and the generated `.pdf`.
 
 ## Architecture
 
 ```text
-PrintApp                          LRCPrintApp
-    │                                  │
-    ▼                                  ▼
-Bag(ReportLabBuilder)            Bag(LRCPrintBuilder)
-    │                                  │
-    ▼ compile()                        ▼ compile()
-ComputedReportLab                ComputedLayout
-    │                                  │
-    ▼ render()                         ▼ LRCReportLabRenderer
-PDF bytes                         PDF bytes
+PrintApp              LRCPrintApp           StyledPrintApp
+    │                      │                      │
+    ▼                      ▼                      ▼
+PrintBuilder         PrintLRCBuilder       PrintStyledBuilder
+(mixin-composed)     (mixin-composed)      (mixin-composed)
+    │                      │                      │
+    ▼ build()              ▼ build()              ▼ build()
+Built Bag             Built Bag              Built Bag
+    │                      │                      │
+    ▼ compile()            ▼ compile()            ▼ compile()
+PrintCompiler        LRCPrintCompiler      StyledPrintCompiler
+(BagCompilerBase)    (BagCompilerBase)     (BagCompilerBase)
+    │                      │                      │
+    └──────────────────────┼──────────────────────┘
+                           ▼
+                    ReportLabBackend
+                           │
+                           ▼
+                       PDF bytes
 ```
 
 ### Key Principles
 
-- **Recipe pattern**: Define structure in `recipe()`, data in `_data` Bag
-- **Two-phase compilation**: First calculate dimensions, then render
+- **BuilderManager lifecycle**: `store()` -> `recipe()` -> `build()` -> `compile()`
+- **Mixin composition**: Element definitions in reusable mixins
+- **BagCompilerBase**: Proper compiler infrastructure with `@compiler` dispatch
+- **Pointer formali**: `^path` data binding resolved just-in-time during compile
 - **Pure declarative source**: Bag contains only what user declared
 - **No side effects**: All computation happens in `compile()`
 

@@ -1,15 +1,16 @@
 # Architettura genro-print
 
 **Status**: 🔴 DA REVISIONARE
-**Data**: 2026-01-27
+**Data**: 2026-04-07
 
 ## Decisione Architetturale
 
-genro-print adotta un'architettura a **due livelli**:
+genro-print adotta un'architettura basata su **genro-builders v0.12.0**:
 
-1. **API Layout/Row/Cell** - Stesse regole del sistema Genropy legacy
-2. **Backend ReportLab** - Generazione PDF diretta (no HTML intermedio)
-3. **PyMuPDF (fitz)** - Utilities opzionali (watermark, merge, preview)
+1. **Tre builder separati** (Platypus+Canvas, Layout/Row/Cell, Styled) assemblati da mixin
+2. **BagCompilerBase** per compilazione Bag -> PDF via ReportLabBackend condiviso
+3. **BuilderManager** per app class con data binding `^pointer`
+4. **PyMuPDF (fitz)** - Utilities opzionali (watermark, merge, preview)
 
 ---
 
@@ -46,59 +47,46 @@ genro-print adotta un'architettura a **due livelli**:
 
 ## 2. Architettura
 
-### 2.1 I Due Builder Principali
+### 2.1 Tre Builder Separati
 
-genro-print utilizza **due builder distinti** con responsabilità separate:
+genro-print utilizza **tre builder separati**, ciascuno assemblato da mixin condivisi:
 
-| Builder | Responsabilità | Input | Output |
-|---------|---------------|-------|--------|
-| **LRCPrintBuilder** | API Layout/Row/Cell + Calcolo dimensioni | Bag | ComputedLayout |
-| **ReportLabBuilder** | Rendering PDF | ComputedLayout | bytes (PDF) |
+| Builder | Elementi | Compiler | Uso |
+|---------|----------|----------|-----|
+| **PrintBuilder** | Platypus + Canvas + Charts | PrintCompiler | Report classici |
+| **PrintLRCBuilder** | Layout/Row/Cell + Charts | LRCPrintCompiler | Griglie elastiche |
+| **PrintStyledBuilder** | Styled shapes + Charts | StyledPrintCompiler | Design posizionale |
+
+Mixin condivisi: `DocumentMixin` e `ChartsMixin` sono gli stessi in tutti i builder.
 
 ### 2.2 Diagramma Architetturale
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                     LRCPrintBuilder                         │
-│               (Layout / Row / Cell Builder)                 │
-│                                                             │
-│   Responsabilità:                                           │
-│   - Definisce elementi: layout(), row(), cell()             │
-│   - Gestisce API utente (stesse regole Genropy)             │
-│   - Calcola dimensioni elastiche (height=0, width=0)        │
-│   - Propaga bordi (ereditarietà)                            │
-│   - Ricorsione per layout annidati (frattale)               │
-│                                                             │
-│   Input: Bag (sorgente puro)                                │
-│   Output: ComputedLayout (coordinate assolute in mm)        │
-│                                                             │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    ComputedLayout                           │
-│                                                             │
-│   Struttura intermedia con valori risolti:                  │
-│   - Coordinate assolute (x, y) per ogni elemento            │
-│   - Dimensioni calcolate (computed_width, computed_height)  │
-│   - Bordi propagati                                         │
-│   - Layout annidati già risolti                             │
-│                                                             │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-            ┌─────────────┴─────────────┐
-            ▼                           ▼
-┌───────────────────────┐   ┌───────────────────────┐
-│   ReportLabBuilder    │   │   HtmlBuilder         │
-│                       │   │   (futuro)            │
-│  ComputedLayout       │   │                       │
-│       ↓               │   │  ComputedLayout       │
-│  Canvas commands      │   │       ↓               │
-│  (rect, drawString)   │   │  HTML + CSS inline    │
-│       ↓               │   │       ↓               │
-│  PDF diretto          │   │  WeasyPrint → PDF     │
-│  PDF                  │   │                       │
-└───────────────────────┘   └───────────────────────┘
+PrintApp              LRCPrintApp           StyledPrintApp
+(BuilderManager)      (BuilderManager)      (BuilderManager)
+    │                      │                      │
+    ▼                      ▼                      ▼
+PrintBuilder         PrintLRCBuilder       PrintStyledBuilder
+(mixin-composed)     (mixin-composed)      (mixin-composed)
+    │                      │                      │
+    ▼ build()              ▼ build()              ▼ build()
+Built Bag             Built Bag              Built Bag
+(^pointer formali)   (^pointer formali)     (^pointer formali)
+    │                      │                      │
+    ▼ compile()            ▼ compile()            ▼ compile()
+PrintCompiler        LRCPrintCompiler      StyledPrintCompiler
+(BagCompilerBase)    (BagCompilerBase)     (BagCompilerBase)
+    │                      │                      │
+    │                  LRCResolver                │
+    │                  (elastic dims)             │
+    │                      │                      │
+    └──────────────────────┼──────────────────────┘
+                           ▼
+                    ReportLabBackend
+                    (shared engine)
+                           │
+                           ▼
+                       PDF bytes
 ```
 
 ---
@@ -108,85 +96,84 @@ genro-print utilizza **due builder distinti** con responsabilità separate:
 ```text
 src/genro_print/
 ├── __init__.py
+├── print_app.py                    # PrintApp, LRCPrintApp, StyledPrintApp
 ├── builders/
-│   ├── __init__.py
-│   ├── lrc.py                 # LRCPrintBuilder (Layout/Row/Cell)
-│   └── reportlab.py           # ReportLabBuilder (PDF rendering)
+│   ├── print_builder.py            # PrintBuilder (Platypus + Canvas)
+│   ├── print_lrc_builder.py        # PrintLRCBuilder (Layout/Row/Cell)
+│   ├── print_styled_builder.py     # PrintStyledBuilder (Styled shapes)
+│   └── mixins/
+│       ├── document_mixin.py       # document (condiviso)
+│       ├── platypus_mixin.py       # paragraph, spacer, pagebreak, image, table
+│       ├── canvas_mixin.py         # drawstring, rect, circle, line, etc.
+│       ├── styled_mixin.py         # styledblock, statictext, styledrect, etc.
+│       ├── lrc_mixin.py            # layout, row, cell
+│       └── charts_mixin.py         # bar_chart, pie_chart, line_chart, qrcode (condiviso)
+├── compilers/
+│   ├── print_compiler.py           # PrintCompiler (BagCompilerBase)
+│   ├── lrc_print_compiler.py       # LRCPrintCompiler (BagCompilerBase)
+│   ├── styled_print_compiler.py    # StyledPrintCompiler (BagCompilerBase)
+│   ├── lrc_resolver.py             # Algoritmo dimensioni elastiche
+│   └── reportlab_backend.py        # Motore ReportLab condiviso
+├── components/
+│   ├── lrc_components.py           # page_template, two_column_row, label_value_row
+│   └── styled_components.py        # labeledtext, titled_box
 ├── computed/
-│   ├── __init__.py
-│   └── layout.py              # ComputedLayout, ComputedRow, ComputedCell
+│   └── layout.py                   # ComputedLayout, ComputedRow, ComputedCell
 └── utils/
-    ├── __init__.py
-    └── pdf_utils.py           # PyMuPDF utilities (opzionale)
+    ├── coordinates.py              # mm-to-points, Y flip
+    └── pdf_utils.py                # PyMuPDF utilities (opzionale)
 ```
 
 ---
 
 ## 4. Flusso di Esecuzione
 
-### 4.1 Costruzione (Utente)
+### 4.1 Uso tramite App Class (raccomandato)
 
 ```python
-from genro_print import PrintBuilder
+from genro_print import LRCPrintApp
 
-doc = Bag(builder=PrintBuilder)
+class InvoiceReport(LRCPrintApp):
+    def store(self, data):
+        data['company'] = 'Acme Corp'       # dati condivisi
+        data['invoice_no'] = 'INV-2025-001'
 
-# Costruisce il sorgente - PURO, nessun calcolo
-layout = doc.layout(width=210, height=297, top=10, bottom=10, left=10, right=10)
+    def recipe(self, root):
+        layout = root.layout(width=210.0, height=297.0, top=10.0, bottom=10.0)
 
-header = layout.row(height=30)
-header.cell(width=60, content="Logo")
-header.cell(content="FATTURA N. 123")  # elastica
+        header = layout.row(height=30.0)
+        header.cell(width=60.0, content="Logo")
+        header.cell(content="^company")  # data binding con ^pointer
 
-body = layout.row()  # elastica
-detail = body.cell()
-# Layout annidato - FRATTALE
-inner = detail.layout(border_width=0.3)
-inner.row(height=10).cell(content="Riga 1")
-inner.row().cell(content="Riga 2")  # elastica
+        body = layout.row()  # elastica
+        detail = body.cell()
+        inner = detail.layout(border_width=0.3)  # layout annidato (frattale)
+        inner.row(height=10.0).cell(content="Riga 1")
+        inner.row().cell(content="Riga 2")
+
+InvoiceReport().save("invoice.pdf")
 ```
 
-### 4.2 Compilazione (Sistema)
+### 4.2 Lifecycle interno (BuilderManager)
 
 ```python
-# Opzione 1: PDF via ReportLab (raccomandato)
-from genro_print.builders import ReportLabBuilder
+# __init__ esegue automaticamente:
+# 1. set_builder('page', PrintLRCBuilder)  → crea builder con compiler registrato
+# 2. setup()  → chiama store(data) poi recipe(source)
+# 3. build()  → materializza source → built Bag (^pointer restano formali)
 
-builder = ReportLabBuilder(doc)
-pdf_bytes = builder.compile()
-
-# Opzione 2: PDF via HTML + WeasyPrint
-from genro_print.builders import HtmlBuilder
-
-builder = HtmlBuilder(doc)
-html = builder.compile()
-# poi WeasyPrint per PDF
-```
-
-### 4.3 Internamente
-
-```python
-class ReportLabBuilder:
-    def compile(self, output=None):
-        # 1. Calcola dimensioni (codice condiviso)
-        computed = DimensionCompiler().compute(self.bag)
-
-        # 2. Genera comandi ReportLab
-        commands = self._generate_commands(computed)
-
-        # 3. Esegui su canvas
-        canvas = Canvas(output or BytesIO())
-        self._execute(canvas, commands)
-        canvas.save()
-
-        return output.getvalue() if output else None
+# render() esegue:
+# 4. page.compile(name='reportlab')  → LRCPrintCompiler.compile(built_bag)
+#    4a. LRCResolver.resolve()  → ComputedLayout (dimensioni elastiche risolte)
+#    4b. ReportLabBackend.render_layout()  → comandi Canvas
+#    4c. ReportLabBackend.finalize()  → PDF bytes
 ```
 
 ---
 
-## 5. DimensionCompiler (Cuore del Sistema)
+## 5. LRCResolver (Cuore del Modello LRC)
 
-Il `DimensionCompiler` è il componente centrale, **condiviso tra tutti i builder**.
+`LRCResolver` è il componente che risolve le dimensioni elastiche per il modello Layout/Row/Cell.
 
 ### 5.1 Input/Output
 
@@ -323,66 +310,51 @@ class DimensionCompiler:
 
 ---
 
-## 6. ReportLabBuilder
+## 6. ReportLabBackend (Motore Condiviso)
 
 ### 6.1 Responsabilità
 
-- Riceve `ComputedLayout` dal `DimensionCompiler`
-- Traduce in chiamate ReportLab Canvas
-- Gestisce trasformazione coordinate (top-left → bottom-left)
-- Gestisce paginazione (page break)
+- Motore ReportLab condiviso da tutti e tre i compiler
+- Due modalità: Platypus (flowables) e Canvas (disegno diretto)
+- Trasformazione coordinate (mm top-left → punti bottom-left)
+- Rendering ComputedLayout (per LRC)
+- Rendering styled elements (per Styled)
+- Rendering grafici (bar_chart, pie_chart, line_chart, qrcode)
+- Parsing colori e finalizzazione PDF bytes
 
-### 6.2 Implementazione Core
+### 6.2 Architettura
 
 ```python
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import mm
+class ReportLabBackend:
+    # Setup
+    def set_page(width, height, margins)
+    def ensure_canvas() -> Canvas
+    def ensure_platypus()
+    def finalize() -> bytes
 
-class ReportLabBuilder:
-    def __init__(self, bag: Bag):
-        self.bag = bag
-        self.page_height = 297 * mm  # A4 default
+    # Platypus
+    def add_paragraph(content, style)
+    def add_spacer(width, height)
+    def add_pagebreak()
+    def add_image(src, width, height)
+    def add_table(data, col_widths)
 
-    def compile(self, output=None):
-        # 1. Calcola dimensioni
-        computed = DimensionCompiler().compute(self.bag)
+    # Canvas
+    def canvas_op(method_name, attrs)  # generic canvas method
 
-        # 2. Crea canvas
-        out = output or BytesIO()
-        c = canvas.Canvas(out, pagesize=(computed.width * mm, computed.height * mm))
-        self.page_height = computed.height * mm
+    # Styled
+    def draw_statictext(x, y, text, align, style)
+    def draw_styledrect(x, y, width, height, radius, style)
+    def draw_styledcircle(x_cen, y_cen, radius, style)
 
-        # 3. Renderizza
-        self._render_layout(c, computed)
+    # LRC
+    def render_layout(computed: ComputedLayout)
 
-        # 4. Salva
-        c.save()
-        return out.getvalue() if isinstance(out, BytesIO) else None
-
-    def _render_layout(self, c, layout: ComputedLayout):
-        for row in layout.rows:
-            for cell in row.cells:
-                self._render_cell(c, cell)
-
-    def _render_cell(self, c, cell: ComputedCell):
-        # Coordinate ReportLab (Y invertita)
-        x = cell.x * mm
-        y = self.page_height - (cell.y + cell.computed_height) * mm
-        w = cell.computed_width * mm
-        h = cell.computed_height * mm
-
-        # Bordo
-        if cell.border:
-            c.setStrokeColor('black')
-            c.setLineWidth(cell.border_width * mm)
-            c.rect(x, y, w, h, stroke=1, fill=0)
-
-        # Contenuto o ricorsione
-        if cell.nested_layout:
-            self._render_layout(c, cell.nested_layout)
-        elif cell.content:
-            # Testo (semplificato - TODO: Paragraph per wrap)
-            c.drawString(x + 2*mm, y + h/2, cell.content)
+    # Charts
+    def draw_bar_chart(x, y, width, height, data, ...)
+    def draw_pie_chart(...)
+    def draw_line_chart(...)
+    def draw_qrcode(...)
 ```
 
 ---
@@ -394,38 +366,32 @@ class ReportLabBuilder:
 | **Sorgente** | Mescolato con calcoli | Puro (solo dati) |
 | **Calcolo dimensioni** | Durante costruzione | In compile() |
 | **Stato** | Mutabile | Immutabile |
-| **Output primario** | HTML → WeasyPrint | ReportLab diretto |
+| **Output primario** | HTML → WeasyPrint | ReportLab via BagCompilerBase |
 | **Annidamento** | Funziona ma con bug | Ricorsione pulita |
 | **Testabilità** | Difficile | Facile (strutture dati) |
 
 ---
 
-## 8. Roadmap Implementazione
+## 8. Stato Implementazione
 
-### Fase 1: Core
-- [ ] `DimensionCompiler` con elasticità base
-- [ ] `ComputedLayout` dataclasses
-- [ ] `ReportLabBuilder` minimale (rect + text)
-- [ ] Test unitari
+### Completato (v0.2.0)
 
-### Fase 2: Completezza
-- [ ] Bordi (ereditarietà, selettivi)
-- [ ] Label nelle celle
-- [ ] Paginazione automatica
+- [x] Tre builder mixin-composed (PrintBuilder, PrintLRCBuilder, PrintStyledBuilder)
+- [x] Tre compiler BagCompilerBase (PrintCompiler, LRCPrintCompiler, StyledPrintCompiler)
+- [x] LRCResolver con elasticita' e annidamento frattale
+- [x] ReportLabBackend condiviso (platypus, canvas, styled, charts, qrcode)
+- [x] App class basate su BuilderManager con data binding `^pointer`
+- [x] Componenti @component (page_template, labeledtext, titled_box, etc.)
+- [x] ComputedLayout dataclasses
+- [x] Bordi con ereditarieta'
+- [x] Cell content elements (image, paragraph, spacer)
+- [x] PyMuPDF utilities (watermark, merge, preview)
 
-### Fase 3: Contenuti
-- [ ] Paragraph (testo con wrap)
-- [ ] Immagini
-- [ ] Barcode/QRCode
+### Da fare
 
-### Fase 4: HtmlBuilder
-- [ ] Output HTML alternativo
-- [ ] Test comparativi (stesso layout → stesso output)
-
-### Fase 5: PyMuPDF Utilities
-- [ ] Watermark su PDF esistenti
-- [ ] Merge documenti
-- [ ] PDF → immagine (preview)
+- [ ] Paginazione automatica multi-pagina per LRC
+- [ ] Output HTML alternativo (futuro renderer)
+- [ ] Test di regressione esaustivi
 
 ---
 
@@ -536,10 +502,11 @@ fitz = ["pymupdf>=1.23.0"]
 
 genro-print combina:
 
-- **API Layout/Row/Cell** provata e familiare
-- **Separazione sorgente/compilato** corretta
-- **Backend ReportLab** per generazione PDF
+- **Tre builder specializzati** assemblati da mixin condivisi
+- **Infrastruttura genro-builders** (BagCompilerBase, BuilderManager, `^pointer`)
+- **Separazione sorgente/compilato** corretta (pointer formali risolti just-in-time)
+- **ReportLabBackend condiviso** per generazione PDF
+- **Componenti @component** con named slots per strutture riutilizzabili
 - **PyMuPDF (fitz)** per utilities (watermark, merge, preview)
-- **Architettura estensibile** per futuri builder
 
-Il principio guida: **sorgente puro, calcoli in compile(), ricorsione per frattali**.
+Il principio guida: **sorgente puro, calcoli in compile(), ricorsione per frattali, infrastruttura genro-builders**.

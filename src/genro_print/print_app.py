@@ -1,83 +1,105 @@
 # Copyright 2025 Softwell S.r.l. - Licensed under Apache License 2.0
 # See LICENSE file for details
-"""PrintApp - Base class for print documents built with Bag.
 
-Workflow:
-    1. App instantiated → creates _page (recipe Bag) and _data (data Bag)
-    2. recipe(root) → populates the recipe Bag (the "human-readable recipe")
-    3. render() → compiles the recipe and generates PDF bytes
+"""Print application classes based on BuilderManager.
 
-IMPORTANT: recipe() is called ONCE at instantiation to create the recipe.
-compile() transforms the recipe into PDF output.
+Three app classes, one for each builder type:
+- PrintApp: Platypus + Canvas (classic reports)
+- LRCPrintApp: Layout/Row/Cell (elastic grid)
+- StyledPrintApp: Declarative styled shapes
 
-Example:
-    from genro_print import PrintApp
-
-    class MyReport(PrintApp):
-        def recipe(self, root):
-            root.document(width=210.0, height=297.0)
-            root.paragraph(content="Hello World")
-            root.spacer(height=10.0)
-            root.paragraph(content="This is a report")
-
-    if __name__ == "__main__":
-        pdf_bytes = MyReport().render()
-        # or save to file
-        MyReport().save("report.pdf")
+All share the same lifecycle: store() -> recipe() -> render() -> save().
 """
 
 from __future__ import annotations
 
-from genro_bag import Bag
+from pathlib import Path
 
-from genro_print.builders import ReportLabBuilder
+from genro_builders import BuilderBag, BuilderManager
+
+from genro_print.builders.print_builder import PrintBuilder
+from genro_print.builders.print_lrc_builder import PrintLRCBuilder
+from genro_print.builders.print_styled_builder import PrintStyledBuilder
 
 
-class PrintApp:
-    """Base class for print documents built with Bag.
+class _PrintAppBase(BuilderManager):
+    """Base class for all print applications.
 
-    Subclass and override recipe(root) to define your document.
-    The root is a Bag with ReportLabBuilder - use it to add elements.
+    Subclasses set _builder_class to select the builder type.
+    Users override recipe() to define their document, and
+    optionally store() to populate report data.
+
+    Example:
+        class MyReport(PrintApp):
+            def store(self, data):
+                data['title'] = 'Monthly Report'
+
+            def recipe(self, root):
+                root.document(width=210, height=297)
+                root.paragraph(content='^title', style='Title')
+
+        report = MyReport()
+        report.save('report.pdf')
     """
 
+    _builder_class: type
+
     def __init__(self) -> None:
-        self._page = Bag(builder=ReportLabBuilder)
-        self._data = Bag()
-        self.recipe(self._page)
+        self.page = self.set_builder("page", self._builder_class)
+        self.setup()
+        self.build()
 
-    @property
-    def page(self) -> Bag:
-        """The page Bag (document structure)."""
-        return self._page
+    def main(self, source: BuilderBag) -> None:
+        """Delegates to recipe() for the user-facing API."""
+        self.recipe(source)
 
-    @property
-    def data(self) -> Bag:
-        """The data Bag (application data for future binding)."""
-        return self._data
-
-    def recipe(self, root: Bag) -> None:
-        """Override this method to build your document.
+    def recipe(self, root: BuilderBag) -> None:
+        """Override to build your document.
 
         Args:
-            root: The page Bag. Add elements by calling methods on it.
+            root: BuilderBag with the builder's available elements.
         """
 
     def render(self) -> bytes:
-        """Render the document to PDF bytes.
-
-        Returns:
-            PDF content as bytes.
-        """
-        computed = self._page.builder.compile(self._page)
-        result: bytes = self._page.builder.render(computed)
+        """Compile the document to PDF bytes."""
+        result: bytes = self.page.compile(name="reportlab")
         return result
 
-    def save(self, filepath: str) -> None:
-        """Render and save the document to a file.
+    def save(self, filepath: str | Path) -> None:
+        """Render and save PDF to file.
 
         Args:
-            filepath: Path to save the PDF file.
+            filepath: Output file path.
         """
         pdf_bytes = self.render()
-        with open(filepath, "wb") as f:
-            f.write(pdf_bytes)
+        Path(filepath).write_bytes(pdf_bytes)
+
+
+class PrintApp(_PrintAppBase):
+    """PDF app using Platypus flowables and Canvas drawing.
+
+    Elements: document, paragraph, spacer, pagebreak, image,
+    table/row/cell, drawstring, rect, circle, line, charts, qrcode.
+    """
+
+    _builder_class = PrintBuilder
+
+
+class LRCPrintApp(_PrintAppBase):
+    """PDF app using Layout/Row/Cell elastic grid.
+
+    Elements: document, layout, row, cell (with elastic dimensions),
+    image, paragraph, spacer, charts, qrcode.
+    """
+
+    _builder_class = PrintLRCBuilder
+
+
+class StyledPrintApp(_PrintAppBase):
+    """PDF app using declarative styled shapes.
+
+    Elements: document, styledblock (with style inheritance),
+    statictext, styledrect, styledcircle, styledline, charts, qrcode.
+    """
+
+    _builder_class = PrintStyledBuilder

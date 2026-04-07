@@ -10,7 +10,7 @@ Demonstrates pie charts with:
 
 from pathlib import Path
 
-from genro_print.print_app import PrintApp
+from genro_print import PrintApp
 
 
 class PieChartDemo(PrintApp):

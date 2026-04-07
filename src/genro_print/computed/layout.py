@@ -8,8 +8,8 @@ These dataclasses represent the result of compiling a Layout/Row/Cell structure.
 They contain all absolute coordinates (in mm) and calculated dimensions,
 including resolution of elastic values.
 
-They serve as the bridge between LRCPrintBuilder (which produces them) and
-ReportLabBuilder (which consumes them to generate PDF).
+They serve as the bridge between LRCResolver (which produces them) and
+ReportLabBackend (which consumes them to generate PDF).
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ class ComputedRow:
 class ComputedLayout:
     """Layout with all dimensions resolved.
 
-    This is the intermediate structure between LRCPrintBuilder and ReportLabBuilder.
+    This is the intermediate structure between LRCResolver and ReportLabBackend.
     It contains all absolute coordinates and calculated dimensions.
 
     Attributes:

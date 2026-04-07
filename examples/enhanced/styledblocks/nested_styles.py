@@ -8,10 +8,10 @@ Child blocks inherit parent styles and can override specific attributes.
 
 from pathlib import Path
 
-from genro_print.enhanced_print_app import EnhancedPrintApp
+from genro_print import StyledPrintApp
 
 
-class NestedStylesDemo(EnhancedPrintApp):
+class NestedStylesDemo(StyledPrintApp):
     """Demonstration of nested styledblocks with style inheritance."""
 
     def recipe(self, root):

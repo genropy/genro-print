@@ -7,8 +7,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "genro-print"
-version = "0.1.0"
-description = "Print and PDF generation system for Genropy - Layout/Row/Cell model with ReportLab"
+version = "0.2.0"
+description = "Print and PDF generation system for Genropy - three builder types with genro-builders infrastructure"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
@@ -24,7 +24,7 @@ keywords = [
     "document-generation"
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -37,7 +37,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "genro-bag>=0.1.0",
+    "genro-bag>=0.11.0",
+    "genro-builders>=0.12.0",
 ]
 
 [project.optional-dependencies]
@@ -96,6 +97,9 @@ module = [
     "reportlab.*",
     "fitz",
     "genro_bag",
+    "genro_bag.*",
+    "genro_builders",
+    "genro_builders.*",
 ]
 ignore_missing_imports = true
 

@@ -11,7 +11,7 @@ This example demonstrates:
 
 from pathlib import Path
 
-from genro_print.print_app import PrintApp
+from genro_print import PrintApp
 
 HERE = Path(__file__).parent
 
